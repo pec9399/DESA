@@ -14,20 +14,20 @@ import org.fog.utils.distribution.Distribution;
 
 public class Sensor extends SimEntity{
 	
-	private int gatewayDeviceId;
-	private GeoLocation geoLocation;
-	private long outputSize;
-	private String appId;
-	private int userId;
-	private String tupleType;
-	private String sensorName;
-	private String destModuleName;
-	private Distribution transmitDistribution;
-	private int controllerId;
-	private Application app;
-	private double latency;
+	protected int gatewayDeviceId;
+	protected GeoLocation geoLocation;
+	protected long outputSize;
+	protected String appId;
+	protected int userId;
+	protected String tupleType;
+	protected String sensorName;
+	protected String destModuleName;
+	protected Distribution transmitDistribution;
+	protected int controllerId;
+	protected Application app;
+	protected double latency;
 
-	private int transmissionStartDelay = Config.TRANSMISSION_START_DELAY;
+	protected int transmissionStartDelay = Config.TRANSMISSION_START_DELAY;
 	
 	public Sensor(String name, int userId, String appId, int gatewayDeviceId, double latency, GeoLocation geoLocation, 
 			Distribution transmitDistribution, int cpuLength, int nwLength, String tupleType, String destModuleName) {
@@ -121,6 +121,7 @@ public class Sensor extends SimEntity{
 	@Override
 	public void startEntity() {
 		send(gatewayDeviceId, CloudSim.getMinTimeBetweenEvents(), FogEvents.SENSOR_JOINED, geoLocation);
+						
 		send(getId(), getTransmitDistribution().getNextValue() + transmissionStartDelay, FogEvents.EMIT_TUPLE);
 	}
 
@@ -135,7 +136,6 @@ public class Sensor extends SimEntity{
 			send(getId(), getTransmitDistribution().getNextValue(), FogEvents.EMIT_TUPLE);
 			break;
 		}
-			
 	}
 
 	@Override

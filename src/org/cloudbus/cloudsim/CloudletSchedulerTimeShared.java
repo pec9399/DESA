@@ -34,7 +34,7 @@ public class CloudletSchedulerTimeShared extends CloudletScheduler {
 
 	/** The current cp us. */
 	protected int currentCPUs;
-
+	
 	/**
 	 * Creates a new CloudletSchedulerTimeShared object. This method must be invoked before starting
 	 * the actual simulation.
@@ -64,7 +64,7 @@ public class CloudletSchedulerTimeShared extends CloudletScheduler {
 	public double updateVmProcessing(double currentTime, List<Double> mipsShare) {
 		setCurrentMipsShare(mipsShare);
 		double timeSpam = currentTime - getPreviousTime();
-
+	
 		for (ResCloudlet rcl : getCloudletExecList()) {
 						
 			rcl.updateCloudletFinishedSoFar((long) (getCapacity(mipsShare) * timeSpam * rcl.getNumberOfPes() * Consts.MILLION));

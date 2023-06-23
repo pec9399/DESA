@@ -85,7 +85,8 @@ public class Application {
 
 		AppModule module = new AppModule(FogUtils.generateEntityId(), moduleName, getAppId(), getUserId(),
 				mips, ram, bw, size, vmm, new TupleScheduler(mips, 1), new HashMap<Pair<String, String>, SelectivityModel>());
-
+		
+		
 		getModules().add(module);
 	}
 	
@@ -178,9 +179,9 @@ public class Application {
 	 * @return
 	 */
 	public AppModule getModuleByName(String name){
-		for(AppModule module : modules){
-			if(module.getName().equals(name))
-				return module;
+		for(int i = 0; i < modules.size();i++){
+			if(modules.get(i).getName().equals(name))
+				return modules.get(i);
 		}
 		return null;
 	}

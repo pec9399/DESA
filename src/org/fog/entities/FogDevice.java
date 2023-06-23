@@ -18,6 +18,8 @@ import org.fog.application.Application;
 import org.fog.mobilitydata.Clustering;
 import org.fog.policy.AppModuleAllocationPolicy;
 import org.fog.scheduler.StreamOperatorScheduler;
+import org.fog.test.perfeval.Desa;
+import org.fog.test.perfeval.Params;
 import org.fog.utils.*;
 import org.json.simple.JSONObject;
 
@@ -683,17 +685,37 @@ public class FogDevice extends PowerDatacenter {
 		/*if(getName().equals("d-0") && tuple.getTupleType().equals("_SENSOR")){
 			System.out.println(++numClients);
 		}*/
-        Logger.debug(getName(), "Received tuple " + tuple.getCloudletId() + "with tupleType = " + tuple.getTupleType() + "\t| Source : " +
-                CloudSim.getEntityName(ev.getSource()) + "|Dest : " + CloudSim.getEntityName(ev.getDestination()));
-		
-		/*if(CloudSim.getEntityName(ev.getSource()).equals("drone_0")||CloudSim.getEntityName(ev.getDestination()).equals("drone_0"))
-			System.out.println(CloudSim.clock()+" "+getName()+" Received tuple "+tuple.getCloudletId()+" with tupleType = "+tuple.getTupleType()+"\t| Source : "+
-		CloudSim.getEntityName(ev.getSource())+"|Dest : "+CloudSim.getEntityName(ev.getDestination()));*/
+        
+        if(tuple.getDestModuleName().equals("registry")) {
 
-        send(ev.getSource(), CloudSim.getMinTimeBetweenEvents(), FogEvents.TUPLE_ACK);
-
-        if (FogUtils.appIdToGeoCoverageMap.containsKey(tuple.getAppId())) {
+        	int numRequest = (int) (tuple.getCloudletFileSize() / Params.requestCPULength);
+        	Logger.debug("registry", "Received " +numRequest + " requests, connect to instances..");
+        	int currentInstances = Desa.emergencyApp.getModules().size()-1;
+        	int cnt = 0;
+        	for(int i = 0; i < numRequest; i++) {
+        		int cur = (cnt % currentInstances)+1;
+        		Desa.connections.transmit(numRequest, "emergencyApp-"+cur);
+        		cnt++;
+        	}
+        	
+        } else if(tuple.getDestModuleName().contains("emergencyApp")){
+        	AppModule microservice = Desa.emergencyApp.getModuleByName("emergencyApp");
+        	microservice.utilization += Params.requestCPULength;
+        	Logger.debug(tuple.getDestModuleName(),"User connected");
+        	
+        } else if(tuple.getTupleType().equals("monitor")) {
+        	AppModule microservice = Desa.emergencyApp.getModuleByName("emergencyApp");
+        	int currentInstances = microservice.getNumInstances();
+        	double utilization = Params.requestCPULength;
+        	double averageUtilization = microservice.utilization / currentInstances / Params.monitorInterval;
+        	Logger.debug("monitor","Utilization: "+averageUtilization+ "%"); 
         }
+
+        	
+    	//Logger.debug(getName(), "Received tuple " + tuple.getCloudletId() + " with tupleType = " + tuple.getTupleType() + "\t| Source : " +
+    	//	CloudSim.getEntityName(ev.getSource()) + "|Dest : " + CloudSim.getEntityName(ev.getDestination()));
+    	
+        send(ev.getSource(), CloudSim.getMinTimeBetweenEvents(), FogEvents.TUPLE_ACK);
 
         if (tuple.getDirection() == Tuple.ACTUATOR) {
             sendTupleToActuator(tuple);
@@ -755,6 +777,7 @@ public class FogDevice extends PowerDatacenter {
                     sendDown(tuple, childId);
             }
         }
+        
     }
 
     protected void updateTimingsOnReceipt(Tuple tuple) {
@@ -783,6 +806,22 @@ public class FogDevice extends PowerDatacenter {
         }
     }
 
+	protected int updateTimings(String src, String dest){
+		Application application = Desa.emergencyApp;
+		for(AppLoop loop : application.getLoops()){
+			if(loop.hasEdge(src, dest) || (src.equals("registry") && dest.contains("instance"))){
+				
+				int tupleId = TimeKeeper.getInstance().getUniqueId();
+				if(!TimeKeeper.getInstance().getLoopIdToTupleIds().containsKey(loop.getLoopId()))
+					TimeKeeper.getInstance().getLoopIdToTupleIds().put(loop.getLoopId(), new ArrayList<Integer>());
+				TimeKeeper.getInstance().getLoopIdToTupleIds().get(loop.getLoopId()).add(tupleId);
+				TimeKeeper.getInstance().getEmitTimes().put(tupleId, CloudSim.clock());
+				return tupleId;
+			}
+		}
+		return -1;
+	}
+    
     protected void processSensorJoining(SimEvent ev) {
         send(ev.getSource(), CloudSim.getMinTimeBetweenEvents(), FogEvents.TUPLE_ACK);
     }

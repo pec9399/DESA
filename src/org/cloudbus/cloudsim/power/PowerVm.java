@@ -34,7 +34,7 @@ import org.cloudbus.cloudsim.util.MathUtil;
 public class PowerVm extends Vm {
 
 	/** The Constant HISTORY_LENGTH. */
-	public static final int HISTORY_LENGTH = 30;
+	public static final int HISTORY_LENGTH = 100000;
 
 	/** The utilization history. */
 	private final List<Double> utilizationHistory = new LinkedList<Double>();
@@ -91,8 +91,11 @@ public class PowerVm extends Vm {
 	@Override
 	public double updateVmProcessing(final double currentTime, final List<Double> mipsShare) {
 		double time = super.updateVmProcessing(currentTime, mipsShare);
-		if (currentTime > getPreviousTime() && (currentTime - 0.1) % getSchedulingInterval() == 0) {
+		if (currentTime > getPreviousTime()) { //&& (currentTime - 0.1) % getSchedulingInterval() == 0) {
 			double utilization = getTotalUtilizationOfCpu(getCloudletScheduler().getPreviousTime());
+			if(utilization > 0.0) {
+				System.out.println();
+			}
 			if (CloudSim.clock() != 0 || utilization != 0) {
 				addUtilizationHistoryValue(utilization);
 			}

@@ -9,6 +9,7 @@ import org.apache.commons.math3.util.Pair;
 import org.cloudbus.cloudsim.CloudletScheduler;
 import org.cloudbus.cloudsim.power.PowerVm;
 import org.fog.application.selectivity.SelectivityModel;
+import org.fog.entities.FogDevice;
 import org.fog.scheduler.TupleScheduler;
 import org.fog.utils.FogUtils;
 
@@ -38,6 +39,9 @@ public class AppModule extends PowerVm{
 	 * Mapping from tupleType emitted by this AppModule to Actuators subscribing to that tupleType
 	 */
 	private Map<String, List<Integer>> actuatorSubscriptions;
+	public boolean placed = false;
+	public FogDevice node = null;
+	public double utilization = 0.0;
 	
 	public AppModule(
 			int id,

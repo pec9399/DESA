@@ -40,7 +40,7 @@ public class Cloudlet {
 	 * The input file size of this Cloudlet before execution (unit: in byte). in byte = program +
 	 * input data size
 	 */
-	private final long cloudletFileSize;
+	private long cloudletFileSize;
 
 	/** The output file size of this Cloudlet after execution (unit: in byte). */
 	private final long cloudletOutputSize;
@@ -696,6 +696,10 @@ public class Cloudlet {
 	 */
 	public long getCloudletFileSize() {
 		return cloudletFileSize;
+	}
+	
+	public void setCloudletFileSize(int l) {
+		cloudletFileSize = l;
 	}
 
 	/**
