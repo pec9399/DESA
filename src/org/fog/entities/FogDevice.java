@@ -515,7 +515,7 @@ public class FogDevice extends PowerDatacenter {
                         Tuple tuple = (Tuple) cl;
                         TimeKeeper.getInstance().tupleEndedExecution(tuple);
                         Application application = getApplicationMap().get(tuple.getAppId());
-                        Logger.debug(getName(), "Completed execution of tuple " + tuple.getCloudletId() + "on " + tuple.getDestModuleName());
+                        Logger.debug(getName(), "Completed execution of tuple " + tuple.getCloudletId() + " on " + tuple.getDestModuleName());
                         List<Tuple> resultantTuples = application.getResultantTuples(tuple.getDestModuleName(), tuple, getId(), vm.getId());
                         for (Tuple resTuple : resultantTuples) {
                             resTuple.setModuleCopyMap(new HashMap<String, Integer>(tuple.getModuleCopyMap()));
@@ -694,21 +694,16 @@ public class FogDevice extends PowerDatacenter {
         	int cnt = 0;
         	for(int i = 0; i < numRequest; i++) {
         		int cur = (cnt % currentInstances)+1;
-        		Desa.connections.transmit(numRequest, "emergencyApp-"+cur);
+        		Desa.connections.transmit(numRequest, "emergencyApp-"+cur, Desa.emergencyApp.getModuleByName("emergencyApp-"+cur).node.getId());
         		cnt++;
         	}
         	
         } else if(tuple.getDestModuleName().contains("emergencyApp")){
-        	AppModule microservice = Desa.emergencyApp.getModuleByName("emergencyApp");
-        	microservice.utilization += Params.requestCPULength;
-        	Logger.debug(tuple.getDestModuleName(),"User connected");
+        	
+        	Logger.debug(getName(),tuple.getDestModuleName() + " User connected");
         	
         } else if(tuple.getTupleType().equals("monitor")) {
-        	AppModule microservice = Desa.emergencyApp.getModuleByName("emergencyApp");
-        	int currentInstances = microservice.getNumInstances();
-        	double utilization = Params.requestCPULength;
-        	double averageUtilization = microservice.utilization / currentInstances / Params.monitorInterval;
-        	Logger.debug("monitor","Utilization: "+averageUtilization+ "%"); 
+     
         }
 
         	

@@ -12,6 +12,7 @@ import org.fog.application.AppEdge;
 import org.fog.entities.Sensor;
 import org.fog.entities.Tuple;
 import org.fog.mobilitydata.References;
+import org.fog.test.perfeval.Params;
 import org.fog.utils.FogEvents;
 import org.fog.utils.FogUtils;
 import org.fog.utils.Logger;
@@ -101,12 +102,21 @@ public class CustomRequest extends Sensor{
 		send(gatewayDeviceId, getLatency(), FogEvents.TUPLE_ARRIVAL,tuple);
 	}
 	
-	public void transmit(int numRequest, String dest){
+	public void transmit(int numRequest, String dest, int nodeId){
 		AppEdge _edge = null;
 		for(AppEdge edge : getApp().getEdges()){
 			if(edge.getSource().equals(getTupleType()))
 				_edge = edge;
 		}
+		
+		if(_edge == null) {
+			getApp().addAppEdge("connection", dest, Params.requestCPULength, Params.requestNetworkLength, "connection", Tuple.UP, AppEdge.SENSOR);
+			for(AppEdge edge : getApp().getEdges()){
+				if(edge.getSource().equals(getTupleType()))
+					_edge = edge;
+			}
+		}
+
 		long cpuLength = (long) _edge.getTupleCpuLength() * numRequest;
 		long nwLength = (long) _edge.getTupleNwLength() * numRequest;
 		
@@ -117,15 +127,13 @@ public class CustomRequest extends Sensor{
 		
 		tuple.setDestModuleName(dest);
 		tuple.setSrcModuleName(getSensorName());
-		//Logger.debug(getName(), "Sending tuple with tupleId = "+tuple.getCloudletId());
-		if(appId.equals("registry"))
-			Logger.debug(getName(), "Sending " + numRequest + " requests to registry");
-		tuple.setDestinationDeviceId(getGatewayDeviceId());
+		
+		tuple.setDestinationDeviceId(nodeId);
 
 		int actualTupleId = updateTimings(getSensorName(), tuple.getDestModuleName());
 		tuple.setActualTupleId(actualTupleId);
 		
-		send(gatewayDeviceId, getLatency(), FogEvents.TUPLE_ARRIVAL,tuple);
+		send(nodeId, getLatency(), FogEvents.TUPLE_ARRIVAL,tuple);
 	}
 
 

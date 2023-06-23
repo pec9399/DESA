@@ -53,7 +53,7 @@ public class Desa {
     public int appId = -1;
     public static int currentInstances = 0;
     public static CustomRequest connections; 
-    
+    public static FogDevice cloud;
     
 	public static void main(String args[]) {
 		try {
@@ -66,7 +66,7 @@ public class Desa {
 		    currentInstances = Params.jmin;
 		    
 		    //cloud
-		    FogDevice cloud = createFogDevice("cloud", 44800, 40000,100000000, 100, 10000, 0, 0.01, 16 * 103, 16 * 83.25);
+		    cloud = createFogDevice("cloud", 44800, 40000,100000000, 100, 10000, 0, 0.01, 16 * 103, 16 * 83.25);
     		cloud.setParentId(-1);
     		fogDevices.add(cloud);
     		
@@ -99,7 +99,6 @@ public class Desa {
     		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(1000));
     		requests.setGatewayDeviceId(cloud.getId());
     		sensors.add(requests);
-    		
     
     		connections = new CustomRequest("connection","connection",broker1.getId(),"emergencyApp",new DeterministicDistribution(0));
     		connections.setGatewayDeviceId(cloud.getId());

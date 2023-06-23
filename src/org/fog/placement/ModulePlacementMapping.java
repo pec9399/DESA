@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.math3.util.Pair;
+import org.cloudbus.cloudsim.Log;
+import org.cloudbus.cloudsim.core.CloudSim;
+import org.fog.application.AppLoop;
 import org.fog.application.AppModule;
 import org.fog.application.Application;
 import org.fog.application.selectivity.SelectivityModel;
@@ -13,6 +16,7 @@ import org.fog.entities.FogDevice;
 import org.fog.scheduler.TupleScheduler;
 import org.fog.test.perfeval.Desa;
 import org.fog.test.perfeval.Params;
+import org.fog.utils.FogEvents;
 import org.fog.utils.FogUtils;
 
 public class ModulePlacementMapping extends ModulePlacement{
@@ -50,13 +54,62 @@ public class ModulePlacementMapping extends ModulePlacement{
 					module.node = node;
 					createModuleInstanceOnDevice(module,node);
 					Desa.emergencyApp.getModules().add(module);
-				
+
+					Map<Integer, List<AppModule>> deviceToModuleMap = getDeviceToModuleMap();
+					for(Integer deviceId : deviceToModuleMap.keySet()){
+						sendNow(deviceId, FogEvents.LAUNCH_MODULE, module);
+					}
+					
+			  		final AppLoop loop1 = new AppLoop(Desa.emergencyApp.getModuleNames());
+			  		List<AppLoop> loops = new ArrayList<AppLoop>(){{add(loop1);}};
+			  		Desa.emergencyApp.setLoops(loops);
+			
+					
 					cnt++;			 
 				}
 				
 			}
 		}
 	}
+	
+	protected void sendNow(int entityId, int cloudSimTag, Object data) {
+		send(entityId, 0, cloudSimTag, data);
+	}
+	protected void send(int entityId, double delay, int cloudSimTag, Object data) {
+		if (entityId < 0) {
+			return;
+		}
+
+		// if delay is -ve, then it doesn't make sense. So resets to 0.0
+		if (delay < 0) {
+			delay = 0;
+		}
+
+		if (Double.isInfinite(delay)) {
+			throw new IllegalArgumentException("The specified delay is infinite value");
+		}
+
+		if (entityId < 0) {
+			//Log.printLine(getName() + ".send(): Error - " + "invalid entity id " + entityId);
+			return;
+		}
+
+		int srcId = Desa.cloud.getId();
+		if (entityId != srcId) {// does not delay self messages
+			//delay += getNetworkDelay(srcId, entityId);
+		}
+
+		schedule(entityId, delay, cloudSimTag, data);
+	}
+	
+	public void schedule(int dest, double delay, int tag, Object data) {
+		if (!CloudSim.running()) {
+			return;
+		}
+		CloudSim.send(Desa.cloud.getId(), dest, delay, tag, data);
+	}
+
+	
 
 	public ModulePlacementMapping(List<FogDevice> fogDevices, Application application, 
 			ModuleMapping moduleMapping){
