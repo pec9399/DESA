@@ -3,8 +3,10 @@ package org.fog.test.perfeval;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.power.PowerHost;
@@ -54,9 +56,14 @@ public class Desa {
     public static int currentInstances = 0;
     public static CustomRequest connections; 
     public static FogDevice cloud;
+    public static Map<String, Double> totalMips = new HashMap<String,Double>();
+    
     
 	public static void main(String args[]) {
 		try {
+			
+			
+			
 			Log.disable(); 
 			Logger.ENABLED = true;
 		    int num_user = 1; 
@@ -74,7 +81,7 @@ public class Desa {
 
     		double latency = 150.0;
     		for(int i = 0; i < Params.numFogNodes; i++) {
-    			FogDevice node = createFogDevice("Node-"+i, 2800, 4000,10000, 10000, 10000, 1, 0.0, 103, 83.25);
+    			FogDevice node = createFogDevice("Node-"+i, 1000, 4000,10000, 10000, 10000, 1, 0.0, 103, 83.25);
     			node.setParentId(cloud.getId());
     			node.setUplinkLatency(latency % 1000); //latency of connection between node and cloud
     			latency+=150.0;
@@ -92,7 +99,7 @@ public class Desa {
     		Application autoscaler = createAutoscaler("autoscaler", broker1.getId());
     		autoscaler.setUserId(broker1.getId());
     		
-    		CustomRequest monitor = new CustomRequest("monitor","monitor",broker1.getId(),"autoscaler",new DeterministicDistribution(15000));
+    		CustomRequest monitor = new CustomRequest("monitor","monitor",broker1.getId(),"autoscaler",new DeterministicDistribution(Params.monitorInterval));
     		monitor.setGatewayDeviceId(cloud.getId());
     		sensors.add(monitor);
     
@@ -119,6 +126,7 @@ public class Desa {
 			TimeKeeper.getInstance().setSimulationStartTime(Calendar.getInstance().getTimeInMillis());
 			CloudSim.startSimulation();
 			CloudSim.stopSimulation();
+			
 		} catch (Exception e) {
 			e.printStackTrace();
             try {
@@ -209,7 +217,7 @@ public class Desa {
     	Application application = Application.createApplication(appId, userId);
   		ArrayList<String> modules = new ArrayList<String>();
   		
-  		application.addAppModule("emergencyApp", 10,10,10);
+  		application.addAppModule("emergencyApp", 1000,1000,1000);
  
   		
   		application.addAppEdge("connection", "emergencyApp", Params.requestCPULength, Params.requestNetworkLength, "connection", Tuple.UP, AppEdge.SENSOR);

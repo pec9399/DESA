@@ -76,33 +76,38 @@ public class CustomRequest extends Sensor{
 	}
 	
 	public void transmit(int numRequest){
-		AppEdge _edge = null;
-		for(AppEdge edge : getApp().getEdges()){
-			if(edge.getSource().equals(getTupleType()))
-				_edge = edge;
-		}
-		long cpuLength = (long) _edge.getTupleCpuLength() * numRequest;
-		long nwLength = (long) _edge.getTupleNwLength() * numRequest;
-		
-		Tuple tuple = new Tuple(getAppId(), FogUtils.generateTupleId(), Tuple.UP, cpuLength, 1, nwLength, outputSize, 
-				new UtilizationModelFull(), new UtilizationModelFull(), new UtilizationModelFull());
-		tuple.setUserId(getUserId());
-		tuple.setTupleType(getTupleType());
-		
-		tuple.setDestModuleName(_edge.getDestination());
-		tuple.setSrcModuleName(getSensorName());
-		//Logger.debug(getName(), "Sending tuple with tupleId = "+tuple.getCloudletId());
-		if(appId.equals("registry"))
-			Logger.debug(getName(), "Sending " + numRequest + " requests to registry");
-		tuple.setDestinationDeviceId(getGatewayDeviceId());
 
-		int actualTupleId = updateTimings(getSensorName(), tuple.getDestModuleName());
-		tuple.setActualTupleId(actualTupleId);
+			AppEdge _edge = null;
+			for(AppEdge edge : getApp().getEdges()){
+				if(edge.getSource().equals(getTupleType()))
+					_edge = edge;
+			}
+			long cpuLength = (long) _edge.getTupleCpuLength()*numRequest;
+			long nwLength = (long) _edge.getTupleNwLength()*numRequest;
+			
+			Tuple tuple = new Tuple(getAppId(), FogUtils.generateTupleId(), Tuple.UP, cpuLength, 1, nwLength, outputSize, 
+					new UtilizationModelFull(), new UtilizationModelFull(), new UtilizationModelFull());
+			tuple.setUserId(getUserId());
+			tuple.setTupleType(getTupleType());
+			
+			tuple.setDestModuleName(_edge.getDestination());
+			tuple.setSrcModuleName(getSensorName());
+			//Logger.debug(getName(), "Sending tuple with tupleId = "+tuple.getCloudletId());
+			if(appId.equals("registry"))
+				Logger.debug(getName(), "Sending "+numRequest + " requests to registry");
+			else if(getName().equals("monitor")){
+				//Logger.debug(getName(), "Fetch metric value : "+tuple.getCloudletId());
+			}
+			tuple.setDestinationDeviceId(getGatewayDeviceId());
+	
+			int actualTupleId = updateTimings(getSensorName(), tuple.getDestModuleName());
+			tuple.setActualTupleId(actualTupleId);
+			
+			send(gatewayDeviceId, appId.equals("registry")?0:getLatency(), FogEvents.TUPLE_ARRIVAL,tuple);
 		
-		send(gatewayDeviceId, getLatency(), FogEvents.TUPLE_ARRIVAL,tuple);
 	}
 	
-	public void transmit(int numRequest, String dest, int nodeId){
+	public void transmit(String dest, int nodeId, double latency){
 		AppEdge _edge = null;
 		for(AppEdge edge : getApp().getEdges()){
 			if(edge.getSource().equals(getTupleType()))
@@ -117,8 +122,8 @@ public class CustomRequest extends Sensor{
 			}
 		}
 
-		long cpuLength = (long) _edge.getTupleCpuLength() * numRequest;
-		long nwLength = (long) _edge.getTupleNwLength() * numRequest;
+		long cpuLength = (long) _edge.getTupleCpuLength();
+		long nwLength = (long) _edge.getTupleNwLength();
 		
 		Tuple tuple = new Tuple(getAppId(), FogUtils.generateTupleId(), Tuple.UP, cpuLength, 1, nwLength, outputSize, 
 				new UtilizationModelFull(), new UtilizationModelFull(), new UtilizationModelFull());
@@ -133,7 +138,7 @@ public class CustomRequest extends Sensor{
 		int actualTupleId = updateTimings(getSensorName(), tuple.getDestModuleName());
 		tuple.setActualTupleId(actualTupleId);
 		
-		send(nodeId, getLatency(), FogEvents.TUPLE_ARRIVAL,tuple);
+		send(nodeId, getLatency()+latency, FogEvents.TUPLE_ARRIVAL,tuple);
 	}
 
 

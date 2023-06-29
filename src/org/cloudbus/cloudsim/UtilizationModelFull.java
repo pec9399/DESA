@@ -8,6 +8,8 @@
 
 package org.cloudbus.cloudsim;
 
+import org.fog.test.perfeval.Params;
+
 /**
  * The UtilizationModelFull class is a simple model, according to which a Cloudlet always utilize
  * all the available CPU capacity.
@@ -23,7 +25,7 @@ public class UtilizationModelFull implements UtilizationModel {
 	 */
 	@Override
 	public double getUtilization(double time) {
-		return 1;
+		return Params.requestUtilization;
 	}
 
 }

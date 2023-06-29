@@ -90,7 +90,7 @@ public class FogDevice extends PowerDatacenter {
     protected Queue<Pair<Tuple, Integer>> clusterTupleQueue;// tuple and destination cluster device ID
     protected boolean isClusterLinkBusy; //Flag denoting whether the link connecting to cluster from this FogDevice is busy
     protected double clusterLinkBandwidth;
-
+    static int cnt = 0;
 
     public FogDevice(
             String name,
@@ -515,7 +515,8 @@ public class FogDevice extends PowerDatacenter {
                         Tuple tuple = (Tuple) cl;
                         TimeKeeper.getInstance().tupleEndedExecution(tuple);
                         Application application = getApplicationMap().get(tuple.getAppId());
-                        Logger.debug(getName(), "Completed execution of tuple " + tuple.getCloudletId() + " on " + tuple.getDestModuleName());
+                        if(!getName().equals("cloud"))
+                        	Logger.debug(getName(), "Completed execution of tuple " + tuple.getCloudletId() + " on " + tuple.getDestModuleName());
                         List<Tuple> resultantTuples = application.getResultantTuples(tuple.getDestModuleName(), tuple, getId(), vm.getId());
                         for (Tuple resTuple : resultantTuples) {
                             resTuple.setModuleCopyMap(new HashMap<String, Integer>(tuple.getModuleCopyMap()));
@@ -593,9 +594,26 @@ public class FogDevice extends PowerDatacenter {
         }
 
         updateEnergyConsumption();
-
+        //updateUtilization();
     }
 
+    private void updateUtilization() {
+    	for (final Vm vm : getHost().getVmList()) {
+            AppModule operator = (AppModule) vm;
+
+            operator.updateVmProcessing(CloudSim.clock(), getVmAllocationPolicy().getHost(operator).getVmScheduler()
+                    .getAllocatedMipsForVm(operator));
+            //Desa.totalMips.merge(operator.getName(),  getHost().getTotalAllocatedMipsForVm(vm),Double::sum);
+            Desa.totalMips.put(operator.getName(),  getHost().getTotalAllocatedMipsForVm(vm));
+            if(operator.getName().contains("emergencyApp-")) {
+            	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
+            }
+    	}
+  
+    	
+    	
+    }
+    
     private void updateEnergyConsumption() {
         double totalMipsAllocated = 0;
         for (final Vm vm : getHost().getVmList()) {
@@ -603,8 +621,9 @@ public class FogDevice extends PowerDatacenter {
             operator.updateVmProcessing(CloudSim.clock(), getVmAllocationPolicy().getHost(operator).getVmScheduler()
                     .getAllocatedMipsForVm(operator));
             totalMipsAllocated += getHost().getTotalAllocatedMipsForVm(vm);
+            Desa.totalMips.merge(operator.getName(),  getHost().getTotalAllocatedMipsForVm(vm),Double::sum);
         }
-
+  
         double timeNow = CloudSim.clock();
         double currentEnergyConsumption = getEnergyConsumption();
         double newEnergyConsumption = currentEnergyConsumption + (timeNow - lastUtilizationUpdateTime) * getHost().getPowerModel().getPower(lastUtilization);
@@ -623,6 +642,7 @@ public class FogDevice extends PowerDatacenter {
 
         lastUtilization = Math.min(1, totalMipsAllocated / getHost().getTotalMips());
         lastUtilizationUpdateTime = timeNow;
+       // if(lastUtilization > 0.0 && !getName().equals("cloud"))Logger.debug(getName(),""+lastUtilization);
     }
 
     protected void processAppSubmit(SimEvent ev) {
@@ -687,20 +707,21 @@ public class FogDevice extends PowerDatacenter {
 		}*/
         
         if(tuple.getDestModuleName().equals("registry")) {
-
-        	int numRequest = (int) (tuple.getCloudletFileSize() / Params.requestCPULength);
+        	
+        	int numRequest = (int) (tuple.getCloudletLength() / Params.requestCPULength);
         	Logger.debug("registry", "Received " +numRequest + " requests, connect to instances..");
         	int currentInstances = Desa.emergencyApp.getModules().size()-1;
-        	int cnt = 0;
-        	for(int i = 0; i < numRequest; i++) {
+        	for(int i = 1; i <= numRequest; i++) {
         		int cur = (cnt % currentInstances)+1;
-        		Desa.connections.transmit(numRequest, "emergencyApp-"+cur, Desa.emergencyApp.getModuleByName("emergencyApp-"+cur).node.getId());
-        		cnt++;
+	        	Desa.connections.transmit("emergencyApp-"+cur, Desa.emergencyApp.getModuleByName("emergencyApp-"+cur).node.getId(), CloudSim.getMinTimeBetweenEvents());
+	        	cnt++;
         	}
+        	
         	
         } else if(tuple.getDestModuleName().contains("emergencyApp")){
         	
         	Logger.debug(getName(),tuple.getDestModuleName() + " User connected");
+        	
         	
         } else if(tuple.getTupleType().equals("monitor")) {
      
@@ -822,7 +843,8 @@ public class FogDevice extends PowerDatacenter {
     }
 
     protected void executeTuple(SimEvent ev, String moduleName) {
-        Logger.debug(getName(), "Executing tuple on module " + moduleName);
+        if(!moduleName.equals("registry"))
+        		Logger.debug(getName(), "Executing tuple on module " + moduleName);
         Tuple tuple = (Tuple) ev.getData();
 
         AppModule module = getModuleByName(moduleName);
@@ -848,6 +870,13 @@ public class FogDevice extends PowerDatacenter {
 		/*for(Vm vm : getHost().getVmList()){
 			Logger.error(getName(), "MIPS allocated to "+((AppModule)vm).getName()+" = "+getHost().getTotalAllocatedMipsForVm(vm));
 		}*/
+        
+    	for (final Vm vm : getHost().getVmList()) {
+            AppModule operator = (AppModule) vm;
+            if(operator.getName().contains("emergencyApp-")) {
+            	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
+            }
+    	}
     }
 
     protected void processModuleArrival(SimEvent ev) {
