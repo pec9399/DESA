@@ -7,6 +7,6 @@ public class Params {
 	public static final int maxInstancePerNode = 2;
 	public static final int requestCPULength = 100;
 	public static final int requestNetworkLength = 100;
-	public static final int monitorInterval = 15000; //15s
+	public static final int monitorInterval = 1500; //15s
 	public static final double requestUtilization=0.2;
 }

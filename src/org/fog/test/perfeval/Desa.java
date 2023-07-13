@@ -18,6 +18,7 @@ import org.fog.application.AppLoop;
 import org.fog.application.Application;
 import org.fog.application.selectivity.FractionalSelectivity;
 import org.fog.entities.Actuator;
+import org.fog.entities.Cloud;
 import org.fog.entities.FogBroker;
 import org.fog.entities.FogDevice;
 import org.fog.entities.FogDeviceCharacteristics;
@@ -54,15 +55,15 @@ public class Desa {
     public static Application emergencyApp;
     public int appId = -1;
     public static int currentInstances = 0;
-    public static CustomRequest connections; 
-    public static FogDevice cloud;
+    public static CustomRequest connections, monitorRequest; 
+    public static Cloud cloud;
     public static Map<String, Double> totalMips = new HashMap<String,Double>();
-    
+	public static boolean hpa = true;
     
 	public static void main(String args[]) {
 		try {
 			
-			
+		
 			
 			Log.disable(); 
 			Logger.ENABLED = true;
@@ -73,7 +74,7 @@ public class Desa {
 		    currentInstances = Params.jmin;
 		    
 		    //cloud
-		    cloud = createFogDevice("cloud", 44800, 40000,100000000, 100, 10000, 0, 0.01, 16 * 103, 16 * 83.25);
+		    cloud = createCloud("cloud", 44800, 40000,100000000, 100, 10000, 0, 0.01, 16 * 103, 16 * 83.25);
     		cloud.setParentId(-1);
     		fogDevices.add(cloud);
     		
@@ -103,24 +104,33 @@ public class Desa {
     		monitor.setGatewayDeviceId(cloud.getId());
     		sensors.add(monitor);
     
-    		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(1000));
+    		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(100));
     		requests.setGatewayDeviceId(cloud.getId());
     		sensors.add(requests);
     
     		connections = new CustomRequest("connection","connection",broker1.getId(),"emergencyApp",new DeterministicDistribution(0));
     		connections.setGatewayDeviceId(cloud.getId());
     		sensors.add(connections);
-    		
+    	
     		
     		ModuleMapping moduleMapping = ModuleMapping.createModuleMapping();
     		moduleMapping.addModuleToDevice("registry", "cloud");
-    		moduleMapping.addModuleToDevice("autoscaler", "cloud");
+    		
+    		//hpa
+    		if(hpa) {
+	    		moduleMapping.addModuleToDevice("monitorComponent", "cloud");
+	    		moduleMapping.addModuleToDevice("analyzeComponent", "cloud");
+	    		moduleMapping.addModuleToDevice("planComponent", "cloud");
+	    		moduleMapping.addModuleToDevice("executeComponent", "cloud");
+    		} else {
+    			
+    		}
     		
     		CustomController controller = new CustomController("master-controller", fogDevices, sensors,
     				actuators);
     		
     		controller.submitApplication(registry, new ModulePlacementMapping(fogDevices,registry,moduleMapping));
-    		controller.submitApplication(autoscaler,  new ModulePlacementMapping(fogDevices,registry,moduleMapping));
+    		controller.submitApplication(autoscaler,  new ModulePlacementMapping(fogDevices,autoscaler,moduleMapping));
     		controller.submitApplication(emergencyApp, new ModulePlacementMapping(fogDevices,emergencyApp, moduleMapping));
     		
 			TimeKeeper.getInstance().setSimulationStartTime(Calendar.getInstance().getTimeInMillis());
@@ -196,6 +206,50 @@ public class Desa {
 		return fogdevice;
 	}
 	
+	private static Cloud createCloud(String nodeName, long mips,
+			int ram, int storage, long upBw, long downBw, int level, double ratePerMips, double busyPower, double idlePower) {
+		
+		List<Pe> peList = new ArrayList<Pe>();
+		// 3. Create PEs and add these into a list.
+		peList.add(new Pe(0, new PeProvisionerOverbooking(mips))); // need to store Pe id and MIPS Rating
+		int hostId = FogUtils.generateEntityId(); // host storage
+		int bw = 100000;
+		PowerHost host = new PowerHost(
+				hostId,
+				new RamProvisionerSimple(ram),
+				new BwProvisionerOverbooking(bw),
+				storage,
+				peList,
+				new StreamOperatorScheduler(peList),
+				new FogLinearPowerModel(busyPower, idlePower)
+			);
+		List<Host> hostList = new ArrayList<Host>();
+		hostList.add(host);
+		String arch = "x86"; // system architecture
+		String os = "Linux"; // operating system
+		String vmm = "Xen";
+		double time_zone = 10.0; // time zone this resource located
+		double cost = 3.0; // the cost of using processing in this resource
+		double costPerMem = 0.00; // the cost of using memory in this resource
+		double costPerStorage = 0.000; // the cost of using storage in this
+		double costPerBw = 3.0; // the cost of using bw in this resource
+		LinkedList<Storage> storageList = new LinkedList<Storage>(); // we are not adding SAN
+													// devices by now
+		FogDeviceCharacteristics characteristics = new FogDeviceCharacteristics(
+				arch, os, vmm, host, time_zone, cost, costPerMem,
+				costPerStorage, costPerBw);
+		Cloud c = null;
+		try {
+			c = new Cloud(nodeName, characteristics,
+					new AppModuleAllocationPolicy(hostList), storageList, 10, upBw, downBw, 0, ratePerMips);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		c.setLevel(level);
+		return c;
+	}
+	
 	 
     @SuppressWarnings({"serial"})
   	private static Application createGlobalServiceRegistry(String appId, int userId){
@@ -235,10 +289,19 @@ public class Desa {
     	Application application = Application.createApplication(appId, userId);
   		ArrayList<String> modules = new ArrayList<String>();
   		
-  		application.addAppModule("monitorService", 10,10,10);
-  		modules.add("monitorService");
-  		
-  		application.addAppEdge("monitor", "monitorService", Params.requestCPULength, Params.requestNetworkLength, "monitor", Tuple.UP, AppEdge.SENSOR);
+  		if(hpa) {
+	  		application.addAppModule("monitorComponent", 10,10,10);
+	  		modules.add("monitorComponent");
+	  		application.addAppModule("analyzeComponent", 10,10,10);
+	  		modules.add("analyzeComponent");
+	  		application.addAppModule("planComponent", 10,10,10);
+	  		modules.add("planComponent");
+	  		application.addAppModule("executeComponent", 10,10,10);
+	  		modules.add("executeComponent");
+  		} else {
+
+  		}
+  		application.addAppEdge("monitor", "monitorComponent", Params.requestCPULength, Params.requestNetworkLength, "monitor", Tuple.UP, AppEdge.SENSOR);
   		
   		final AppLoop loop1 = new AppLoop(modules);
   		List<AppLoop> loops = new ArrayList<AppLoop>(){{add(loop1);}};

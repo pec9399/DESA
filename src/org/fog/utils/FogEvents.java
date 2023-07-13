@@ -45,5 +45,9 @@ public class FogEvents {
     public static final int UPDATE_RESOURCE_INFO = BASE + 37;
     //---------------------------------------------
     public static final int START_DYNAMIC_CLUSTERING = BASE + 38;
+    public static final int MONITOR = BASE+39;
+    public static final int ANALYZE = BASE+40;
+    public static final int PLAN = BASE+41;
+    public static final int EXECUTE = BASE+42;
 
 }

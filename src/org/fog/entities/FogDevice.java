@@ -302,11 +302,43 @@ public class FogDevice extends PowerDatacenter {
                 //This message is received by the devices to start their clustering
                 processClustering(this.getParentId(), this.getId(), ev);
                 break;
+            case FogEvents.MONITOR:
+            	monitor();
+            	break;
+            case FogEvents.ANALYZE:
+            	analyze();
+            	break;
+            case FogEvents.PLAN:
+            	plan();
+            	break;
+            case FogEvents.EXECUTE:
+            	execute();
+            	break;
+       
             default:
                 break;
         }
     }
 
+    void monitor() {
+    	Logger.debug(getName(),"Start Monitor");
+    	send(getId(), 0, FogEvents.ANALYZE, null);
+    }
+    
+    void analyze() {
+    	Logger.debug(getName(),"Start Analyze");
+    	send(getId(), 0, FogEvents.PLAN, null);
+    }
+    
+    void plan() {
+    	Logger.debug(getName(),"Start Plan");
+    	send(getId(), 0, FogEvents.EXECUTE, null);
+    }
+    
+    void execute() {
+    	Logger.debug(getName(),"Start Execute");
+    }
+    
     protected void moduleSend(SimEvent ev) {
         // TODO Auto-generated method stub
         JSONObject object = (JSONObject) ev.getData();
@@ -358,7 +390,7 @@ public class FogDevice extends PowerDatacenter {
         System.out.println(getName() + " Creating " + config.getInstanceCount() + " instances of module " + config.getModule().getName());
     }
 
-    private AppModule getModuleByName(String moduleName) {
+    protected AppModule getModuleByName(String moduleName) {
         AppModule module = null;
         for (Vm vm : getHost().getVmList()) {
             if (((AppModule) vm).getName().equals(moduleName)) {
@@ -515,8 +547,8 @@ public class FogDevice extends PowerDatacenter {
                         Tuple tuple = (Tuple) cl;
                         TimeKeeper.getInstance().tupleEndedExecution(tuple);
                         Application application = getApplicationMap().get(tuple.getAppId());
-                        if(!getName().equals("cloud"))
-                        	Logger.debug(getName(), "Completed execution of tuple " + tuple.getCloudletId() + " on " + tuple.getDestModuleName());
+                        //if(!getName().equals("cloud"))
+                        	//Logger.debug(getName(), "Completed execution of tuple " + tuple.getCloudletId() + " on " + tuple.getDestModuleName());
                         List<Tuple> resultantTuples = application.getResultantTuples(tuple.getDestModuleName(), tuple, getId(), vm.getId());
                         for (Tuple resTuple : resultantTuples) {
                             resTuple.setModuleCopyMap(new HashMap<String, Integer>(tuple.getModuleCopyMap()));
@@ -718,13 +750,23 @@ public class FogDevice extends PowerDatacenter {
         	}
         	
         	
-        } else if(tuple.getDestModuleName().contains("emergencyApp")){
+        } else if(tuple.getDestModuleName().contains("emergencyApp") && (tuple.getDestModuleName().indexOf('-') == tuple.getDestModuleName().lastIndexOf('-'))){
         	
-        	Logger.debug(getName(),tuple.getDestModuleName() + " User connected");
+        	//Logger.debug(getName(),tuple.getDestModuleName() + " User connected");
         	
         	
-        } else if(tuple.getTupleType().equals("monitor")) {
-     
+        } else if(tuple.getTupleType().contains("connection")) {
+        	//Logger.debug(getName(), "Start MAPE");
+        	sendNow(getId(), FogEvents.MONITOR, null);
+        	/*
+	        	Logger.debug(getName(),tuple.getDestModuleName() + "Collect metric from nodes");
+	        	for (final Vm vm : getHost().getVmList()) {
+	                AppModule operator = (AppModule) vm;
+	                if(operator.getName().contains("emergencyApp-")) {
+	                	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
+	                }
+	        	}
+        	*/
         }
 
         	
@@ -843,7 +885,7 @@ public class FogDevice extends PowerDatacenter {
     }
 
     protected void executeTuple(SimEvent ev, String moduleName) {
-        if(!moduleName.equals("registry"))
+        if(moduleName.equals("registry"))
         		Logger.debug(getName(), "Executing tuple on module " + moduleName);
         Tuple tuple = (Tuple) ev.getData();
 
@@ -871,12 +913,12 @@ public class FogDevice extends PowerDatacenter {
 			Logger.error(getName(), "MIPS allocated to "+((AppModule)vm).getName()+" = "+getHost().getTotalAllocatedMipsForVm(vm));
 		}*/
         
-    	for (final Vm vm : getHost().getVmList()) {
+    	/*for (final Vm vm : getHost().getVmList()) {
             AppModule operator = (AppModule) vm;
             if(operator.getName().contains("emergencyApp-")) {
             	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
             }
-    	}
+    	}*/
     }
 
     protected void processModuleArrival(SimEvent ev) {
@@ -1220,7 +1262,7 @@ public class FogDevice extends PowerDatacenter {
         }
     }
 
-    private void updateClusterTupleQueue() {
+    protected void updateClusterTupleQueue() {
         if (!getClusterTupleQueue().isEmpty()) {
             Pair<Tuple, Integer> pair = getClusterTupleQueue().poll();
             sendThroughFreeClusterLink(pair.getFirst(), pair.getSecond());

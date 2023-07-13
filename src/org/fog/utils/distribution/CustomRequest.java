@@ -96,7 +96,7 @@ public class CustomRequest extends Sensor{
 			if(appId.equals("registry"))
 				Logger.debug(getName(), "Sending "+numRequest + " requests to registry");
 			else if(getName().equals("monitor")){
-				//Logger.debug(getName(), "Fetch metric value : "+tuple.getCloudletId());
+				Logger.debug(getName(), "Fetch metric value : "+tuple.getCloudletId());
 			}
 			tuple.setDestinationDeviceId(getGatewayDeviceId());
 	
