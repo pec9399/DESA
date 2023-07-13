@@ -9,4 +9,5 @@ public class Params {
 	public static final int requestNetworkLength = 100;
 	public static final int monitorInterval = 100; //15s
 	public static final double requestUtilization=0.2;
+	public static final double upperThreshold = 0.5;
 }

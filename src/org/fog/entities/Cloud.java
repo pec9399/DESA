@@ -92,7 +92,9 @@ public class Cloud extends FogDevice {
     protected double clusterLinkBandwidth;
     static int cnt = 0;
     
-
+    private double averageCPUUtilization = 0.0;
+    private int desiredReplicas = 0;
+    
     public Cloud(
             String name,
             FogDeviceCharacteristics characteristics,
@@ -222,27 +224,36 @@ public class Cloud extends FogDevice {
 
     void monitor() {
     	Logger.debug(getName(),"Start Monitor");
-    	
+    	averageCPUUtilization = 0.0;
     	for (FogDevice node : Desa.fogDevices) {
     		for (Vm vm : node.getVmList()) {
 			   AppModule operator = (AppModule) vm;
 	            if(operator.getName().contains("emergencyApp-")) {
-	            	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
+	            	double utilization = vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime) ;
+	            	//Logger.debug(operator.getName(),utilization + "%");
+	            	averageCPUUtilization += utilization;
 	            }		
     		}
          
     	}
-    	
+    	averageCPUUtilization /= Desa.currentInstances;
+    	Logger.debug(getName(), String.format("Average utilization: %.2f %%", averageCPUUtilization*100));
     	send(getId(), 0, FogEvents.ANALYZE, null);
     }
     
     void analyze() {
     	Logger.debug(getName(),"Start Analyze");
+    	//kubernetes hpa algorithm
+    	desiredReplicas = (int)Math.ceil(Desa.currentInstances * (averageCPUUtilization/Params.upperThreshold));
+    	if(desiredReplicas > Desa.currentInstances) {
+    		Logger.debug(getName(),"Scale up to " + desiredReplicas + " instances");
+    	}
     	send(getId(), 0, FogEvents.PLAN, null);
     }
     
     void plan() {
     	Logger.debug(getName(),"Start Plan");
+    	//round-robin
     	send(getId(), 0, FogEvents.EXECUTE, null);
     }
     

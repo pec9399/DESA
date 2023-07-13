@@ -54,7 +54,7 @@ public class Desa {
     static LocationHandler locator;
     public static Application emergencyApp;
     public int appId = -1;
-    public static int currentInstances = 0;
+    public static int currentInstances = 0; //only available for HPA since it is centralized
     public static CustomRequest connections, monitorRequest; 
     public static Cloud cloud;
     public static Map<String, Double> totalMips = new HashMap<String,Double>();
