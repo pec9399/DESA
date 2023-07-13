@@ -362,6 +362,7 @@ public class CloudletSchedulerTimeShared extends CloudletScheduler {
 	public double getTotalUtilizationOfCpu(double time) {
 		double totalUtilization = 0;
 		for (ResCloudlet gl : getCloudletExecList()) {
+			if(!((Tuple)gl.getCloudlet()).getDestModuleName().contains("monitor"))
 			totalUtilization += gl.getCloudlet().getUtilizationOfCpu(time);
 		}
 		return totalUtilization;

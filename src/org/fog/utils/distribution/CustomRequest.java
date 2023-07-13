@@ -93,11 +93,11 @@ public class CustomRequest extends Sensor{
 			tuple.setDestModuleName(_edge.getDestination());
 			tuple.setSrcModuleName(getSensorName());
 			//Logger.debug(getName(), "Sending tuple with tupleId = "+tuple.getCloudletId());
-			if(appId.equals("registry"))
+			/*if(appId.equals("registry"))
 				Logger.debug(getName(), "Sending "+numRequest + " requests to registry");
 			else if(getName().equals("monitor")){
 				Logger.debug(getName(), "Fetch metric value : "+tuple.getCloudletId());
-			}
+			}*/
 			tuple.setDestinationDeviceId(getGatewayDeviceId());
 	
 			int actualTupleId = updateTimings(getSensorName(), tuple.getDestModuleName());

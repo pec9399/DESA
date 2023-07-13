@@ -222,6 +222,17 @@ public class Cloud extends FogDevice {
 
     void monitor() {
     	Logger.debug(getName(),"Start Monitor");
+    	
+    	for (FogDevice node : Desa.fogDevices) {
+    		for (Vm vm : node.getVmList()) {
+			   AppModule operator = (AppModule) vm;
+	            if(operator.getName().contains("emergencyApp-")) {
+	            	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
+	            }		
+    		}
+         
+    	}
+    	
     	send(getId(), 0, FogEvents.ANALYZE, null);
     }
     

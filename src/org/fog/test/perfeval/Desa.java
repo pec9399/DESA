@@ -48,7 +48,7 @@ import org.cloudbus.cloudsim.Pe;
 import org.cloudbus.cloudsim.Storage;
 
 public class Desa {
-	static List<FogDevice> fogDevices = new ArrayList<FogDevice>();
+	public static List<FogDevice> fogDevices = new ArrayList<FogDevice>();
     static List<CustomRequest> sensors = new ArrayList<CustomRequest>();
     static List<Actuator> actuators = new ArrayList<Actuator>();
     static LocationHandler locator;
@@ -104,7 +104,7 @@ public class Desa {
     		monitor.setGatewayDeviceId(cloud.getId());
     		sensors.add(monitor);
     
-    		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(100));
+    		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(90));
     		requests.setGatewayDeviceId(cloud.getId());
     		sensors.add(requests);
     

@@ -322,6 +322,12 @@ public class FogDevice extends PowerDatacenter {
 
     void monitor() {
     	Logger.debug(getName(),"Start Monitor");
+    	for (final Vm vm : getHost().getVmList()) {
+            AppModule operator = (AppModule) vm;
+            if(operator.getName().contains("emergencyApp-")) {
+            	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
+            }
+    	}
     	send(getId(), 0, FogEvents.ANALYZE, null);
     }
     
@@ -547,8 +553,8 @@ public class FogDevice extends PowerDatacenter {
                         Tuple tuple = (Tuple) cl;
                         TimeKeeper.getInstance().tupleEndedExecution(tuple);
                         Application application = getApplicationMap().get(tuple.getAppId());
-                        //if(!getName().equals("cloud"))
-                        	//Logger.debug(getName(), "Completed execution of tuple " + tuple.getCloudletId() + " on " + tuple.getDestModuleName());
+                        if(!getName().equals("cloud"))
+                        	Logger.debug(getName(), "Completed execution of tuple " + tuple.getCloudletId() + " on " + tuple.getDestModuleName());
                         List<Tuple> resultantTuples = application.getResultantTuples(tuple.getDestModuleName(), tuple, getId(), vm.getId());
                         for (Tuple resTuple : resultantTuples) {
                             resTuple.setModuleCopyMap(new HashMap<String, Integer>(tuple.getModuleCopyMap()));
@@ -741,7 +747,7 @@ public class FogDevice extends PowerDatacenter {
         if(tuple.getDestModuleName().equals("registry")) {
         	
         	int numRequest = (int) (tuple.getCloudletLength() / Params.requestCPULength);
-        	Logger.debug("registry", "Received " +numRequest + " requests, connect to instances..");
+        	//Logger.debug("registry", "Received " +numRequest + " requests, connect to instances..");
         	int currentInstances = Desa.emergencyApp.getModules().size()-1;
         	for(int i = 1; i <= numRequest; i++) {
         		int cur = (cnt % currentInstances)+1;
@@ -752,7 +758,7 @@ public class FogDevice extends PowerDatacenter {
         	
         } else if(tuple.getDestModuleName().contains("emergencyApp") && (tuple.getDestModuleName().indexOf('-') == tuple.getDestModuleName().lastIndexOf('-'))){
         	
-        	//Logger.debug(getName(),tuple.getDestModuleName() + " User connected");
+        	Logger.debug(getName(),tuple.getDestModuleName() + " User connected");
         	
         	
         } else if(tuple.getTupleType().contains("connection")) {
@@ -885,8 +891,8 @@ public class FogDevice extends PowerDatacenter {
     }
 
     protected void executeTuple(SimEvent ev, String moduleName) {
-        if(moduleName.equals("registry"))
-        		Logger.debug(getName(), "Executing tuple on module " + moduleName);
+        
+        //Logger.debug(getName(), "Executing tuple on module " + moduleName);
         Tuple tuple = (Tuple) ev.getData();
 
         AppModule module = getModuleByName(moduleName);
