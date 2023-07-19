@@ -14,6 +14,7 @@ import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.lists.PeList;
 import org.cloudbus.cloudsim.provisioners.BwProvisioner;
 import org.cloudbus.cloudsim.provisioners.RamProvisioner;
+import org.fog.application.AppModule;
 
 /**
  * Host executes actions related to management of virtual machines (e.g., creation and destruction).
@@ -228,11 +229,22 @@ public class Host {
 		}
 
 		setStorage(getStorage() - vm.getSize());
-		getVmList().add(vm);
+		if(!exist(vm))
+			getVmList().add(vm);
 		vm.setHost(this);
 		return true;
 	}
 
+
+	private boolean exist(Vm _v) {
+		for(Vm v : getVmList()) {
+			if(((AppModule)v).getName().equals(((AppModule)_v).getName())){
+				return true;
+			}
+		}
+		return false;
+	}
+	
 	/**
 	 * Destroys a VM running in the host.
 	 * 

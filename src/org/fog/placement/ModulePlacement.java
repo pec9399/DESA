@@ -44,7 +44,7 @@ public abstract class ModulePlacement {
 		return false;
 	}
 
-	protected boolean createModuleInstanceOnDevice(AppModule _module, final FogDevice device){
+	public boolean createModuleInstanceOnDevice(AppModule _module, final FogDevice device){
 		AppModule module = null;
 		if(getModuleToDeviceMap().containsKey(_module.getName()))
 			module = new AppModule(_module);
@@ -69,7 +69,7 @@ public abstract class ModulePlacement {
 		}
 	}
 
-	protected FogDevice getDeviceByName(String deviceName) {
+	public FogDevice getDeviceByName(String deviceName) {
 		for(FogDevice dev : getFogDevices()){
 			if(dev.getName().equals(deviceName))
 				return dev;

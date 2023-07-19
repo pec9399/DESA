@@ -12,6 +12,7 @@ import java.util.List;
 
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.fog.entities.Tuple;
+import org.fog.utils.Debug;
 
 /**
  * CloudletSchedulerTimeShared implements a policy of scheduling performed by a virtual machine.
@@ -317,7 +318,11 @@ public class CloudletSchedulerTimeShared extends CloudletScheduler {
 		double extraSize = getCapacity(getCurrentMipsShare()) * fileTransferTime;
 		long length = (long) (cloudlet.getCloudletLength() + extraSize);
 		cloudlet.setCloudletLength(length);
+		if(((Tuple)rcl.getCloudlet()).getDestModuleName().contains("emergencyApp-")) {
+			getCapacity(getCurrentMipsShare());
+		}
 		return cloudlet.getCloudletLength() / getCapacity(getCurrentMipsShare());
+		
 	}
 
 	/*
@@ -365,6 +370,7 @@ public class CloudletSchedulerTimeShared extends CloudletScheduler {
 			if(!((Tuple)gl.getCloudlet()).getDestModuleName().contains("monitor"))
 			totalUtilization += gl.getCloudlet().getUtilizationOfCpu(time);
 		}
+		
 		return totalUtilization;
 	}
 

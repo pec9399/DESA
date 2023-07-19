@@ -22,7 +22,7 @@ import org.fog.utils.FogUtils;
 public class ModulePlacementMapping extends ModulePlacement{
 
 	private ModuleMapping moduleMapping;
-	private static int cnt = 0;
+	public int cnt = 0;
 	@Override
 	protected void mapModules() {
 		Map<String, List<String>> mapping = moduleMapping.getModuleMapping();
@@ -38,68 +38,75 @@ public class ModulePlacementMapping extends ModulePlacement{
 			}
 		}
 		
+		updateModules(Desa.currentInstances);
+	}
+	
+	public void updateModules(int n) {
 		//handle unmapped modules
-		List<AppModule> modules = getApplication().getModules();
-		int s = modules.size();
-		for(int j = 0; j < s; j++) {
-			AppModule instance = modules.get(j);
-			if(instance.getAppId().equals("emergencyApp") && !instance.placed) {
-				for(int i = 0; i < Params.jmin;i++) {
-					//round-robin
-					int cur = (cnt % Params.numFogNodes)+1;
-					AppModule module = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur, instance.getAppId(), instance.getUserId(),
-							instance.getMips(), instance.getRam(), instance.getBw(), instance.getSize(), instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
-					
-				
-					
-					FogDevice node = getDeviceByName("Node-"+cur);
-					module.node = node;
-					createModuleInstanceOnDevice(module,node);
-					Desa.emergencyApp.getModules().add(module);
+				List<AppModule> modules = getApplication().getModules();
+				int s = modules.size();
+				for(int j = 0; j < s; j++) {
+					AppModule instance = modules.get(j);
+					if(instance.getAppId().equals("emergencyApp") && !instance.placed) {
+						//Desa.emergencyApp.setModules(new ArrayList<AppModule>());
+						for(int i = 0; i < n;i++) {
+							//round-robin
+							int cur = (cnt % Params.numFogNodes)+1;
+							AppModule module = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+(cnt+1), instance.getAppId(), instance.getUserId(),
+									instance.getMips(), instance.getRam(), instance.getBw(), instance.getSize(), instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
+							
+						
+							
+							FogDevice node = getDeviceByName("Node-"+cur);
+							module.node = node;
+							
+							
+							createModuleInstanceOnDevice(module,node);
+							Desa.emergencyApp.getModules().add(module);
 
-					AppModule monitor, analyze, plan, execute;
-					if(!Desa.hpa) {
-						 monitor = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-monitor", instance.getAppId(), instance.getUserId(),
-								10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
-						 analyze = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-analyze", instance.getAppId(), instance.getUserId(),
-								10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
-						 plan = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-plan", instance.getAppId(), instance.getUserId(),
-								10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
-						 execute = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-execute", instance.getAppId(), instance.getUserId(),
-								10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
-						 
-						 monitor.node = node;
-						 analyze.node = node;
-						 plan.node = node;
-						 execute.node = node;
-						 createModuleInstanceOnDevice(monitor, node);
-						 createModuleInstanceOnDevice(analyze, node);
-						 createModuleInstanceOnDevice(plan, node);
-						 createModuleInstanceOnDevice(execute, node);
-						 Desa.emergencyApp.getModules().add(monitor);
-						 Desa.emergencyApp.getModules().add(analyze);
-						 Desa.emergencyApp.getModules().add(plan);
-						 Desa.emergencyApp.getModules().add(execute);
+							AppModule monitor, analyze, plan, execute;
+							if(!Desa.hpa) {
+								 monitor = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-monitor", instance.getAppId(), instance.getUserId(),
+										10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
+								 analyze = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-analyze", instance.getAppId(), instance.getUserId(),
+										10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
+								 plan = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-plan", instance.getAppId(), instance.getUserId(),
+										10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
+								 execute = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-execute", instance.getAppId(), instance.getUserId(),
+										10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
+								 
+								 monitor.node = node;
+								 analyze.node = node;
+								 plan.node = node;
+								 execute.node = node;
+								 createModuleInstanceOnDevice(monitor, node);
+								 createModuleInstanceOnDevice(analyze, node);
+								 createModuleInstanceOnDevice(plan, node);
+								 createModuleInstanceOnDevice(execute, node);
+								 Desa.emergencyApp.getModules().add(monitor);
+								 Desa.emergencyApp.getModules().add(analyze);
+								 Desa.emergencyApp.getModules().add(plan);
+								 Desa.emergencyApp.getModules().add(execute);
 
-						 
-						 
-					}	
+								 
+								 
+							}	
+							
+							Map<Integer, List<AppModule>> deviceToModuleMap = getDeviceToModuleMap();
+							//for(Integer deviceId : deviceToModuleMap.keySet()){
+								//sendNow(deviceId, FogEvents.LAUNCH_MODULE, module);
+							//}
+							
+					  		final AppLoop loop1 = new AppLoop(Desa.emergencyApp.getModuleNames());
+					  		List<AppLoop> loops = new ArrayList<AppLoop>(){{add(loop1);}};
+					  		Desa.emergencyApp.setLoops(loops);
 					
-					Map<Integer, List<AppModule>> deviceToModuleMap = getDeviceToModuleMap();
-					for(Integer deviceId : deviceToModuleMap.keySet()){
-						sendNow(deviceId, FogEvents.LAUNCH_MODULE, module);
+							
+							cnt++;			 
+						}
+						
 					}
-					
-			  		final AppLoop loop1 = new AppLoop(Desa.emergencyApp.getModuleNames());
-			  		List<AppLoop> loops = new ArrayList<AppLoop>(){{add(loop1);}};
-			  		Desa.emergencyApp.setLoops(loops);
-			
-					
-					cnt++;			 
 				}
-				
-			}
-		}
 	}
 	
 	protected void sendNow(int entityId, int cloudSimTag, Object data) {

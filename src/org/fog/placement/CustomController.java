@@ -30,8 +30,8 @@ public class CustomController extends SimEntity{
 	private List<CustomRequest> sensors;
 	private List<Actuator> actuators;
 	
-	private Map<String, Application> applications;
-	private Map<String, Integer> appLaunchDelays;
+	public Map<String, Application> applications;
+	public Map<String, Integer> appLaunchDelays;
 
 	private Map<String, ModulePlacement> appModulePlacementPolicy;
 	
@@ -197,15 +197,7 @@ public class CustomController extends SimEntity{
 			ac.setApp(getApplications().get(ac.getAppId()));
 		}
 		
-		for(AppEdge edge : application.getEdges()){
-			if(edge.getEdgeType() == AppEdge.ACTUATOR){
-				String moduleName = edge.getSource();
-				for(Actuator actuator : getActuators()){
-					if(actuator.getActuatorType().equalsIgnoreCase(edge.getDestination()))
-						application.getModuleByName(moduleName).subscribeActuator(actuator.getId(), edge.getTupleType());
-				}
-			}
-		}	
+	
 	}
 	
 	public void submitApplication(Application application, ModulePlacement modulePlacement){
@@ -218,7 +210,7 @@ public class CustomController extends SimEntity{
 		processAppSubmit(app);
 	}
 	
-	private void processAppSubmit(Application application){
+	public void processAppSubmit(Application application){
 		System.out.println(CloudSim.clock()+" Submitted application "+ application.getAppId());
 		FogUtils.appIdToGeoCoverageMap.put(application.getAppId(), application.getGeoCoverage());
 		getApplications().put(application.getAppId(), application);
@@ -229,12 +221,15 @@ public class CustomController extends SimEntity{
 		}
 		
 		Map<Integer, List<AppModule>> deviceToModuleMap = modulePlacement.getDeviceToModuleMap();
+		int cnt = 0;
 		for(Integer deviceId : deviceToModuleMap.keySet()){
 			for(AppModule module : deviceToModuleMap.get(deviceId)){
 				sendNow(deviceId, FogEvents.APP_SUBMIT, application);
 				sendNow(deviceId, FogEvents.LAUNCH_MODULE, module);
+				cnt++;
 			}
 		}
+		System.out.println(cnt);
 	}
 
 	public List<FogDevice> getFogDevices() {

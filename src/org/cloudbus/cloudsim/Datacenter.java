@@ -17,6 +17,7 @@ import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEntity;
 import org.cloudbus.cloudsim.core.SimEvent;
+import org.fog.application.AppModule;
 
 
 /**
@@ -443,6 +444,7 @@ public class Datacenter extends SimEntity {
 		}
 
 		if (result) {
+			if(!exist(vm)) {
 			getVmList().add(vm);
 
 			if (vm.isBeingInstantiated()) {
@@ -450,10 +452,20 @@ public class Datacenter extends SimEntity {
 			}
 			vm.updateVmProcessing(CloudSim.clock(), getVmAllocationPolicy().getHost(vm).getVmScheduler()
 					.getAllocatedMipsForVm(vm));
+			}
 		}
 
 	}
 
+	private boolean exist(Vm _v) {
+		for(Vm v : getVmList()) {
+			if(((AppModule)v).getName().equals(((AppModule)_v).getName())){
+				return true;
+			}
+		}
+		return false;
+	}
+	
 	/**
 	 * Process the event for an User/Broker who wants to destroy a VM previously created in this
 	 * PowerDatacenter. This PowerDatacenter may send, upon request, the status back to the

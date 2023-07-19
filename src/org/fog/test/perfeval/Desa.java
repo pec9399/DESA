@@ -36,6 +36,7 @@ import org.fog.placement.ModulePlacementMapping;
 import org.fog.placement.ModulePlacementOnlyCloud;
 import org.fog.policy.AppModuleAllocationPolicy;
 import org.fog.scheduler.StreamOperatorScheduler;
+import org.fog.utils.Debug;
 import org.fog.utils.FogLinearPowerModel;
 import org.fog.utils.FogUtils;
 import org.fog.utils.Logger;
@@ -59,12 +60,13 @@ public class Desa {
     public static Cloud cloud;
     public static Map<String, Double> totalMips = new HashMap<String,Double>();
 	public static boolean hpa = true;
-    
+    public static CustomController controller;
+    public static ModuleMapping moduleMapping;
 	public static void main(String args[]) {
 		try {
 			
 		
-			
+			//Debug d = new Debug();
 			Log.disable(); 
 			Logger.ENABLED = true;
 		    int num_user = 1; 
@@ -81,7 +83,7 @@ public class Desa {
     		//fogs
 
     		double latency = 150.0;
-    		for(int i = 0; i < Params.numFogNodes; i++) {
+    		for(int i = 1; i <= Params.numFogNodes; i++) {
     			FogDevice node = createFogDevice("Node-"+i, 1000, 4000,10000, 10000, 10000, 1, 0.0, 103, 83.25);
     			node.setParentId(cloud.getId());
     			node.setUplinkLatency(latency % 1000); //latency of connection between node and cloud
@@ -104,7 +106,7 @@ public class Desa {
     		monitor.setGatewayDeviceId(cloud.getId());
     		sensors.add(monitor);
     
-    		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(90));
+    		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(1000));
     		requests.setGatewayDeviceId(cloud.getId());
     		sensors.add(requests);
     
@@ -113,7 +115,7 @@ public class Desa {
     		sensors.add(connections);
     	
     		
-    		ModuleMapping moduleMapping = ModuleMapping.createModuleMapping();
+    		moduleMapping = ModuleMapping.createModuleMapping();
     		moduleMapping.addModuleToDevice("registry", "cloud");
     		
     		//hpa
@@ -126,7 +128,7 @@ public class Desa {
     			
     		}
     		
-    		CustomController controller = new CustomController("master-controller", fogDevices, sensors,
+    		controller = new CustomController("master-controller", fogDevices, sensors,
     				actuators);
     		
     		controller.submitApplication(registry, new ModulePlacementMapping(fogDevices,registry,moduleMapping));
@@ -271,7 +273,7 @@ public class Desa {
     	Application application = Application.createApplication(appId, userId);
   		ArrayList<String> modules = new ArrayList<String>();
   		
-  		application.addAppModule("emergencyApp", 1000,1000,1000);
+  		application.addAppModule("emergencyApp", 10,10,10);
  
   		
   		application.addAppEdge("connection", "emergencyApp", Params.requestCPULength, Params.requestNetworkLength, "connection", Tuple.UP, AppEdge.SENSOR);

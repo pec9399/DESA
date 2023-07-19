@@ -15,9 +15,12 @@ import org.fog.application.AppEdge;
 import org.fog.application.AppLoop;
 import org.fog.application.AppModule;
 import org.fog.application.Application;
+import org.fog.application.selectivity.SelectivityModel;
 import org.fog.mobilitydata.Clustering;
+import org.fog.placement.ModulePlacementMapping;
 import org.fog.policy.AppModuleAllocationPolicy;
 import org.fog.scheduler.StreamOperatorScheduler;
+import org.fog.scheduler.TupleScheduler;
 import org.fog.test.perfeval.Desa;
 import org.fog.test.perfeval.Params;
 import org.fog.utils.*;
@@ -219,25 +222,31 @@ public class Cloud extends FogDevice {
 
         lastUtilization = Math.min(1, totalMipsAllocated / getHost().getTotalMips());
         lastUtilizationUpdateTime = timeNow;
+        Debug.progress.setValue((int)(100*lastUtilization));
        // if(lastUtilization > 0.0 && !getName().equals("cloud"))Logger.debug(getName(),""+lastUtilization);
     }
-
+    
+    
+    //HPA's MAPE
     void monitor() {
     	Logger.debug(getName(),"Start Monitor");
     	averageCPUUtilization = 0.0;
     	for (FogDevice node : Desa.fogDevices) {
-    		for (Vm vm : node.getVmList()) {
-			   AppModule operator = (AppModule) vm;
-	            if(operator.getName().contains("emergencyApp-")) {
-	            	double utilization = vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime) ;
-	            	//Logger.debug(operator.getName(),utilization + "%");
-	            	averageCPUUtilization += utilization;
-	            }		
+    		if(node.getName().contains("Node-")) {
+	    		for (Vm vm : node.getVmList()) {
+				   AppModule operator = (AppModule) vm;
+		            if(operator.getName().contains("emergencyApp-")) {
+		            	double utilization = vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime) ;
+		            	Logger.debug(node.getName(),operator.getName() + ": "+(utilization*100) + "%");
+		            	averageCPUUtilization += utilization;
+		            }		
+	    		}
     		}
          
     	}
     	averageCPUUtilization /= Desa.currentInstances;
     	Logger.debug(getName(), String.format("Average utilization: %.2f %%", averageCPUUtilization*100));
+    	//Debug.progress.setValue((int)(averageCPUUtilization*100));
     	send(getId(), 0, FogEvents.ANALYZE, null);
     }
     
@@ -247,18 +256,35 @@ public class Cloud extends FogDevice {
     	desiredReplicas = (int)Math.ceil(Desa.currentInstances * (averageCPUUtilization/Params.upperThreshold));
     	if(desiredReplicas > Desa.currentInstances) {
     		Logger.debug(getName(),"Scale up to " + desiredReplicas + " instances");
+    		send(getId(), 0, FogEvents.PLAN, null);
     	}
-    	send(getId(), 0, FogEvents.PLAN, null);
     }
     
     void plan() {
     	Logger.debug(getName(),"Start Plan");
     	//round-robin
+    	
     	send(getId(), 0, FogEvents.EXECUTE, null);
     }
     
     void execute() {
+    	
     	Logger.debug(getName(),"Start Execute");
+    	
+ 
+		Desa.currentInstances = desiredReplicas;
+		
+		Desa.controller.submitApplication(Desa.emergencyApp, new ModulePlacementMapping(Desa.fogDevices,Desa.emergencyApp, Desa.moduleMapping));
+		
+		for(String appId : Desa.controller.applications.keySet()){
+			if(appId.equals("emergencyApp")) {
+				if(Desa.controller.getAppLaunchDelays().get(appId)==0)
+					Desa.controller.processAppSubmit(Desa.controller.applications.get(appId));
+				else
+					send(getId(), Desa.controller.getAppLaunchDelays().get(appId), FogEvents.APP_SUBMIT, Desa.controller.applications.get(appId));
+			}
+		}
+
     }
     
     protected void processTupleArrival(SimEvent ev) {
@@ -283,11 +309,11 @@ public class Cloud extends FogDevice {
 	        			currentInstances++;
 	        	}
         	} else {
-        		currentInstances = Desa.emergencyApp.getModules().size()-1;
+        		currentInstances = Desa.currentInstances;
         	}
         	for(int i = 1; i <= numRequest; i++) {
         		int cur = (cnt % currentInstances)+1;
-	        	Desa.connections.transmit("emergencyApp-"+cur, Desa.emergencyApp.getModuleByName("emergencyApp-"+cur).node.getId(), CloudSim.getMinTimeBetweenEvents());
+	        	Desa.connections.transmit("emergencyApp-"+cur, Desa.emergencyApp.getModuleByName("emergencyApp-"+cur).node.getId(), (int)(Math.random()*1000));
 	        	cnt++;
         	}
         	

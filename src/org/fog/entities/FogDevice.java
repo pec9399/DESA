@@ -254,6 +254,7 @@ public class FogDevice extends PowerDatacenter {
                 processTupleArrival(ev);
                 break;
             case FogEvents.LAUNCH_MODULE:
+            	
                 processModuleArrival(ev);
                 break;
             case FogEvents.RELEASE_OPERATOR:
@@ -319,7 +320,7 @@ public class FogDevice extends PowerDatacenter {
                 break;
         }
     }
-
+    //DESA's MAPE
     void monitor() {
     	Logger.debug(getName(),"Start Monitor");
     	for (final Vm vm : getHost().getVmList()) {
@@ -553,7 +554,7 @@ public class FogDevice extends PowerDatacenter {
                         Tuple tuple = (Tuple) cl;
                         TimeKeeper.getInstance().tupleEndedExecution(tuple);
                         Application application = getApplicationMap().get(tuple.getAppId());
-                        if(!getName().equals("cloud"))
+                        if(Params.tupleLog)
                         	Logger.debug(getName(), "Completed execution of tuple " + tuple.getCloudletId() + " on " + tuple.getDestModuleName());
                         List<Tuple> resultantTuples = application.getResultantTuples(tuple.getDestModuleName(), tuple, getId(), vm.getId());
                         for (Tuple resTuple : resultantTuples) {
@@ -758,7 +759,7 @@ public class FogDevice extends PowerDatacenter {
         	
         } else if(tuple.getDestModuleName().contains("emergencyApp") && (tuple.getDestModuleName().indexOf('-') == tuple.getDestModuleName().lastIndexOf('-'))){
         	
-        	Logger.debug(getName(),tuple.getDestModuleName() + " User connected");
+        	if(Params.userLog)Logger.debug(getName(),tuple.getDestModuleName() + " User connected");
         	
         	
         } else if(tuple.getTupleType().contains("connection")) {
@@ -939,7 +940,7 @@ public class FogDevice extends PowerDatacenter {
             module.setBeingInstantiated(false);
         }
 
-        initializePeriodicTuples(module);
+      //  initializePeriodicTuples(module);
 
         module.updateVmProcessing(CloudSim.clock(), getVmAllocationPolicy().getHost(module).getVmScheduler()
                 .getAllocatedMipsForVm(module));
