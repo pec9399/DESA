@@ -13,6 +13,7 @@ import org.fog.entities.Sensor;
 import org.fog.entities.Tuple;
 import org.fog.mobilitydata.References;
 import org.fog.test.perfeval.Params;
+import org.fog.utils.Config;
 import org.fog.utils.FogEvents;
 import org.fog.utils.FogUtils;
 import org.fog.utils.Logger;
@@ -44,7 +45,7 @@ public class CustomRequest extends Sensor{
 				Scanner scanner = new Scanner(requests);
 				while(scanner.hasNextLine()) {
 					String line = scanner.nextLine();
-					requestQueue.add(Integer.parseInt(line));
+					requestQueue.add(Integer.parseInt(line)/100);
 				}
 				scanner.close();
 			} catch(Exception e) {
@@ -55,6 +56,7 @@ public class CustomRequest extends Sensor{
 		}
 		if(!appId.equals("emergencyApp"))
 			send(getId(), getTransmitDistribution().getNextValue() + transmissionStartDelay, FogEvents.EMIT_TUPLE);
+		
 	}
 	
 	@Override
@@ -76,7 +78,9 @@ public class CustomRequest extends Sensor{
 	}
 	
 	public void transmit(int numRequest){
-
+			if(numRequest == -1) {
+				send(getId(), 0, FogEvents.STOP_SIMULATION);
+			}
 			AppEdge _edge = null;
 			for(AppEdge edge : getApp().getEdges()){
 				if(edge.getSource().equals(getTupleType()))
@@ -122,8 +126,8 @@ public class CustomRequest extends Sensor{
 			}
 		}
 
-		long cpuLength = (long) _edge.getTupleCpuLength();
-		long nwLength = (long) _edge.getTupleNwLength();
+		long cpuLength =  Params.requestCPULength;
+		long nwLength =  Params.requestNetworkLength;
 		
 		Tuple tuple = new Tuple(getAppId(), FogUtils.generateTupleId(), Tuple.UP, cpuLength, 1, nwLength, outputSize, 
 				new UtilizationModelFull(), new UtilizationModelFull(), new UtilizationModelFull());

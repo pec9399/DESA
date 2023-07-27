@@ -49,5 +49,6 @@ public class FogEvents {
     public static final int ANALYZE = BASE+40;
     public static final int PLAN = BASE+41;
     public static final int EXECUTE = BASE+42;
+    public static final int SCALEUP = BASE+43;
 
 }

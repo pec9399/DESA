@@ -21,6 +21,8 @@ import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.core.predicates.Predicate;
 import org.cloudbus.cloudsim.core.predicates.PredicateAny;
 import org.cloudbus.cloudsim.core.predicates.PredicateNone;
+import org.fog.test.perfeval.Desa;
+import org.fog.utils.Logger;
 
 /**
  * This class extends the CloudSimCore to enable network simulation in CloudSim. Also, it disables
@@ -193,7 +195,7 @@ public class CloudSim {
 			cis = null;
 			calendar = null;
 			traceFlag = false;
-
+		
 			return clock;
 		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
@@ -308,10 +310,10 @@ public class CloudSim {
 	// ======== SIMULATION METHODS ===============//
 
 	/** The entities. */
-	private static List<SimEntity> entities;
+	public static List<SimEntity> entities;
 
 	/** The future event queue. */
-	protected static FutureQueue future;
+	public static FutureQueue future;
 
 	/** The deferred event queue. */
 	protected static DeferredQueue deferred;
@@ -511,7 +513,7 @@ public class CloudSim {
 	public static boolean runClockTick() {
 		SimEntity ent;
 		boolean queue_empty;
-		
+		Desa.debug.setTime(clock);
 		int entities_size = entities.size();
 
 		for (int i = 0; i < entities_size; i++) {
@@ -551,6 +553,7 @@ public class CloudSim {
 			queue_empty = true;
 			running = false;
 			printMessage("Simulation: No more future events");
+			Logger.debug("simulation", "No more future events");
 		}
 
 		return queue_empty;

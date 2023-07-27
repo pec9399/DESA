@@ -7,6 +7,7 @@ import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEvent;
 import org.cloudbus.cloudsim.power.PowerDatacenter;
 import org.cloudbus.cloudsim.power.PowerHost;
+import org.cloudbus.cloudsim.power.PowerVm;
 import org.cloudbus.cloudsim.power.models.PowerModel;
 import org.cloudbus.cloudsim.provisioners.RamProvisionerSimple;
 import org.cloudbus.cloudsim.sdn.overbooking.BwProvisionerOverbooking;
@@ -125,7 +126,7 @@ public class Cloud extends FogDevice {
         if (getCharacteristics().getNumberOfPes() == 0) {
             throw new Exception(super.getName()
                     + " : Error - this entity has no PEs. Therefore, can't process any Cloudlets.");
-        }
+        }	
         // stores id of this class
         getCharacteristics().setId(super.getId());
 
@@ -220,32 +221,50 @@ public class Cloud extends FogDevice {
         double newcost = currentCost + (timeNow - lastUtilizationUpdateTime) * getRatePerMips() * lastUtilization * getHost().getTotalMips();
         setTotalCost(newcost);
 
-        lastUtilization = Math.min(1, totalMipsAllocated / getHost().getTotalMips());
+        lastUtilization = totalMipsAllocated / getHost().getTotalMips();
         lastUtilizationUpdateTime = timeNow;
-        Debug.progress.setValue((int)(100*lastUtilization));
+        //Debug.progress.setValue((int)(100*lastUtilization));
        // if(lastUtilization > 0.0 && !getName().equals("cloud"))Logger.debug(getName(),""+lastUtilization);
     }
     
     
     //HPA's MAPE
+    //TODO: define metrics
     void monitor() {
     	Logger.debug(getName(),"Start Monitor");
     	averageCPUUtilization = 0.0;
+    	Desa.RTU = CloudSim.clock();
+    	
     	for (FogDevice node : Desa.fogDevices) {
     		if(node.getName().contains("Node-")) {
-	    		for (Vm vm : node.getVmList()) {
+	    		
+    			for (Vm vm : node.getVmList()) {
+    		
 				   AppModule operator = (AppModule) vm;
+    			   //Logger.debug(operator.getName(), ""+operator.getUtilizationMad());
 		            if(operator.getName().contains("emergencyApp-")) {
-		            	double utilization = vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime) ;
-		            	Logger.debug(node.getName(),operator.getName() + ": "+(utilization*100) + "%");
+		            	//double utilization = vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime) ;
+		            	//double utilization = operator.getUtilizationMean();
+		            	double utilization = operator.handledMips / operator.getMips()/(Params.monitorInterval);
+		            	operator.handledMips = 0.0;
+		            	Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
 		            	averageCPUUtilization += utilization;
+		            	if(utilization > Params.upperThreshold) {
+		            		Desa.RTU = -1;
+		            	}
+		            	Desa.debug.updateUtilization(operator, utilization);
+		            	operator.utilizationHistory.clear();
+		            	((TupleScheduler)operator.getCloudletScheduler()).cloudletFinishedList.clear();
+		           
 		            }		
+		            
 	    		}
     		}
-         
     	}
     	averageCPUUtilization /= Desa.currentInstances;
-    	Logger.debug(getName(), String.format("Average utilization: %.2f %%", averageCPUUtilization*100));
+    	Logger.debug(getName(), String.format("Average utilization: %.2f %%", averageCPUUtilization));
+    	Desa.avgCPU += averageCPUUtilization;
+    	Desa.monitorCount++;
     	//Debug.progress.setValue((int)(averageCPUUtilization*100));
     	send(getId(), 0, FogEvents.ANALYZE, null);
     }
@@ -253,18 +272,21 @@ public class Cloud extends FogDevice {
     void analyze() {
     	Logger.debug(getName(),"Start Analyze");
     	//kubernetes hpa algorithm
-    	desiredReplicas = (int)Math.ceil(Desa.currentInstances * (averageCPUUtilization/Params.upperThreshold));
+    	desiredReplicas = (int)Math.ceil(Desa.currentInstances * (averageCPUUtilization/(Params.upperThreshold*100)));
     	if(desiredReplicas > Desa.currentInstances) {
     		Logger.debug(getName(),"Scale up to " + desiredReplicas + " instances");
     		send(getId(), 0, FogEvents.PLAN, null);
+    	} else {
+    		Logger.debug(getName(),"End Analyze");
     	}
+    	
     }
     
     void plan() {
     	Logger.debug(getName(),"Start Plan");
     	//round-robin
     	
-    	send(getId(), 0, FogEvents.EXECUTE, null);
+    send(getId(), 0, FogEvents.EXECUTE, null);
     }
     
     void execute() {
@@ -273,7 +295,7 @@ public class Cloud extends FogDevice {
     	
  
 		Desa.currentInstances = desiredReplicas;
-		
+		Desa.maxInstances = Math.max(Desa.currentInstances, Desa.maxInstances);
 		Desa.controller.submitApplication(Desa.emergencyApp, new ModulePlacementMapping(Desa.fogDevices,Desa.emergencyApp, Desa.moduleMapping));
 		
 		for(String appId : Desa.controller.applications.keySet()){
@@ -284,7 +306,67 @@ public class Cloud extends FogDevice {
 					send(getId(), Desa.controller.getAppLaunchDelays().get(appId), FogEvents.APP_SUBMIT, Desa.controller.applications.get(appId));
 			}
 		}
+		
+		//TODO: connection 넘기기?
+		send(getId(),5,FogEvents.SCALEUP);
+    }
+    
+    protected void distributeConnections(){
+    	Logger.debug(getName(),"Distribute connections");
+    	List<ResCloudlet> connections = new ArrayList<ResCloudlet>();
+		for (FogDevice node : Desa.fogDevices) {
+    		if(node.getName().contains("Node-")) {
+	    		
+    			for (Vm vm : node.getVmList()) {
+				   AppModule operator = (AppModule) vm;
+		            if(operator.getName().contains("emergencyApp-")) {
+		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
+		            	for(int i  = tuples.size()-1; i >=0; i--) {
+		            		if(tuples.get(i).getCloudlet().getClass() == Tuple.class) {
+		            			connections.add(tuples.get(i));
+		            		
+		            		}
+		            	}
+		            	tuples.clear();
+		            }		
+	    		}
+    		}
+    	}
+		
+		int n = connections.size()/Desa.currentInstances;
+		for (FogDevice node : Desa.fogDevices) {
+    		if(node.getName().contains("Node-")) {
+	    		
+    			for (Vm vm : node.getVmList()) {
+				   AppModule operator = (AppModule) vm;
+		            if(operator.getName().contains("emergencyApp-")) {
+		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
+		            	for(int i = 0; i < n; i++) {
+		            		Tuple t = (Tuple)connections.get(0).getCloudlet();
+		            		t.setDestModuleName(operator.getName());
+		            		t.setDestinationDeviceId(vm.getId());
+		            		tuples.add(connections.get(0));
+		            		connections.remove(0);
+		            	}
+		            }		
+	    		}
+    		}
+    	}
+		
 
+		/*
+		 * for (FogDevice node : Desa.fogDevices) { if(node.getName().contains("Node-"))
+		 * {
+		 * 
+		 * for (Vm vm : node.getVmList()) { AppModule operator = (AppModule) vm;
+		 * if(operator.getName().contains("emergencyApp-")) { List<ResCloudlet> tuples =
+		 * ((CloudletSchedulerTimeShared)
+		 * operator.getCloudletScheduler()).getCloudletExecList();
+		 * System.out.println(tuples.size());
+		 * 
+		 * } } } }
+		 */
+    	
     }
     
     protected void processTupleArrival(SimEvent ev) {
@@ -311,9 +393,11 @@ public class Cloud extends FogDevice {
         	} else {
         		currentInstances = Desa.currentInstances;
         	}
+        	
+        	
         	for(int i = 1; i <= numRequest; i++) {
         		int cur = (cnt % currentInstances)+1;
-	        	Desa.connections.transmit("emergencyApp-"+cur, Desa.emergencyApp.getModuleByName("emergencyApp-"+cur).node.getId(), (int)(Math.random()*1000));
+	        	Desa.connections.transmit("emergencyApp-"+cur, Desa.emergencyApp.getModuleByName("emergencyApp-"+cur).node.getId(), (int)(Math.random()*Params.requestInterval));
 	        	cnt++;
         	}
         	
@@ -337,6 +421,26 @@ public class Cloud extends FogDevice {
 	        		Desa.connections.transmit("emergencyApp-"+i+"-monitor", Desa.emergencyApp.getModuleByName("emergencyApp-"+i+"-monitor").node.getId(), 0);
 	        	}
         	}
+        } else if(tuple.getTupleType().equals("metric")) {
+        	double avg = 0.0;
+        	for (FogDevice node : Desa.fogDevices) {
+        		if(node.getName().contains("Node-")) {
+        			for (Vm vm : node.getVmList()) {
+    				   AppModule operator = (AppModule) vm;
+    		            if(operator.getName().contains("emergencyApp-")) {
+    		            	double utilization = operator.handledMips / operator.getMips()/((int)CloudSim.clock()%Params.monitorInterval);          	
+    		            	//Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
+    		            	avg += utilization;
+    		            	if(utilization > Params.upperThreshold) {
+    		            		Desa.RTU = -1;
+    		            	}
+    		            	Desa.debug.updateUtilization(operator, utilization);          
+    		            }		
+    	    		}
+        		}
+        	}
+        	avg /= Desa.currentInstances;
+        	//Logger.debug(getName(), String.format("Average utilization: %.2f %%", avg));
         }
 
         	

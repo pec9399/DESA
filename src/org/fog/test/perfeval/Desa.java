@@ -1,5 +1,8 @@
 package org.fog.test.perfeval;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -62,11 +65,17 @@ public class Desa {
 	public static boolean hpa = true;
     public static CustomController controller;
     public static ModuleMapping moduleMapping;
+    public static int maxInstances = 0;
+    public static double RTU = 0.0;
+    public static double avgCPU = 0.0;
+    public static int monitorCount = 0;
+    public static File file = new File("C:\\Users\\WebEng\\Desktop\\debug.csv");
+    public static Debug debug;
 	public static void main(String args[]) {
 		try {
 			
+			
 		
-			//Debug d = new Debug();
 			Log.disable(); 
 			Logger.ENABLED = true;
 		    int num_user = 1; 
@@ -84,7 +93,7 @@ public class Desa {
 
     		double latency = 150.0;
     		for(int i = 1; i <= Params.numFogNodes; i++) {
-    			FogDevice node = createFogDevice("Node-"+i, 1000, 4000,10000, 10000, 10000, 1, 0.0, 103, 83.25);
+    			FogDevice node = createFogDevice("Node-"+i, 10000, 40000,10000, 10000, 10000, 1, 0.0, 103, 83.25);
     			node.setParentId(cloud.getId());
     			node.setUplinkLatency(latency % 1000); //latency of connection between node and cloud
     			latency+=150.0;
@@ -95,24 +104,31 @@ public class Desa {
     		FogBroker broker1 = new FogBroker("broker-1");
     		Application registry = createGlobalServiceRegistry("registry", broker1.getId());
     		registry.setUserId(broker1.getId());
-    		
+    			
     		emergencyApp = createMicroservices("emergencyApp", broker1.getId());
     		emergencyApp.setUserId(broker1.getId());
     		
     		Application autoscaler = createAutoscaler("autoscaler", broker1.getId());
     		autoscaler.setUserId(broker1.getId());
     		
+    		Application metricServer = createMetricServer("metric-server", broker1.getId());
+    		metricServer.setUserId(broker1.getId());
+    		
     		CustomRequest monitor = new CustomRequest("monitor","monitor",broker1.getId(),"autoscaler",new DeterministicDistribution(Params.monitorInterval));
     		monitor.setGatewayDeviceId(cloud.getId());
     		sensors.add(monitor);
     
-    		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(1000));
+    		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(Params.requestInterval));
     		requests.setGatewayDeviceId(cloud.getId());
     		sensors.add(requests);
     
     		connections = new CustomRequest("connection","connection",broker1.getId(),"emergencyApp",new DeterministicDistribution(0));
     		connections.setGatewayDeviceId(cloud.getId());
     		sensors.add(connections);
+    		
+    		CustomRequest metric = new CustomRequest("metric","metric",broker1.getId(),"metric-server",new DeterministicDistribution(1000));
+    		metric.setGatewayDeviceId(cloud.getId());
+    		sensors.add(metric);
     	
     		
     		moduleMapping = ModuleMapping.createModuleMapping();
@@ -124,6 +140,7 @@ public class Desa {
 	    		moduleMapping.addModuleToDevice("analyzeComponent", "cloud");
 	    		moduleMapping.addModuleToDevice("planComponent", "cloud");
 	    		moduleMapping.addModuleToDevice("executeComponent", "cloud");
+	    		moduleMapping.addModuleToDevice("metric-server", "cloud");
     		} else {
     			
     		}
@@ -134,6 +151,11 @@ public class Desa {
     		controller.submitApplication(registry, new ModulePlacementMapping(fogDevices,registry,moduleMapping));
     		controller.submitApplication(autoscaler,  new ModulePlacementMapping(fogDevices,autoscaler,moduleMapping));
     		controller.submitApplication(emergencyApp, new ModulePlacementMapping(fogDevices,emergencyApp, moduleMapping));
+    		controller.submitApplication(metricServer, new ModulePlacementMapping(fogDevices,metricServer, moduleMapping));
+    		
+    		debug = new Debug();
+    		debug.addNodes(fogDevices);
+    		
     		
 			TimeKeeper.getInstance().setSimulationStartTime(Calendar.getInstance().getTimeInMillis());
 			CloudSim.startSimulation();
@@ -273,7 +295,7 @@ public class Desa {
     	Application application = Application.createApplication(appId, userId);
   		ArrayList<String> modules = new ArrayList<String>();
   		
-  		application.addAppModule("emergencyApp", 10,10,10);
+  		application.addAppModule("emergencyApp", 1000,1000,1000);
  
   		
   		application.addAppEdge("connection", "emergencyApp", Params.requestCPULength, Params.requestNetworkLength, "connection", Tuple.UP, AppEdge.SENSOR);
@@ -312,4 +334,26 @@ public class Desa {
   		
   		return application;
     }
+    
+    @SuppressWarnings({"serial"})
+  	private static Application createMetricServer(String appId, int userId){
+    	Application application = Application.createApplication(appId, userId);
+  		ArrayList<String> modules = new ArrayList<String>();
+  		
+  		if(hpa) {
+	  		application.addAppModule("metric-server", 10,10,10);
+	  		modules.add("metric-server");
+  		} else {
+
+  		}
+  		application.addAppEdge("metric", "metric-server", 10, 10, "metric", Tuple.UP, AppEdge.SENSOR);
+  		
+  		final AppLoop loop1 = new AppLoop(modules);
+  		List<AppLoop> loops = new ArrayList<AppLoop>(){{add(loop1);}};
+  		application.setLoops(loops);
+
+  		
+  		return application;
+    }
+    
 }

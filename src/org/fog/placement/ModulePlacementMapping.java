@@ -47,7 +47,7 @@ public class ModulePlacementMapping extends ModulePlacement{
 				int s = modules.size();
 				for(int j = 0; j < s; j++) {
 					AppModule instance = modules.get(j);
-					if(instance.getAppId().equals("emergencyApp") && !instance.placed) {
+					if(instance.getName().equals("emergencyApp") && !instance.placed) {
 						//Desa.emergencyApp.setModules(new ArrayList<AppModule>());
 						for(int i = 0; i < n;i++) {
 							//round-robin

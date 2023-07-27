@@ -15,6 +15,7 @@ import org.fog.application.Application;
 import org.fog.entities.Actuator;
 import org.fog.entities.FogDevice;
 import org.fog.entities.Sensor;
+import org.fog.test.perfeval.Desa;
 import org.fog.utils.Config;
 import org.fog.utils.FogEvents;
 import org.fog.utils.FogUtils;
@@ -102,12 +103,19 @@ public class CustomController extends SimEntity{
 			CloudSim.stopSimulation();
 			//printTimeDetails();
 			//printPowerDetails();
-			//printCostDetails();
-			//printNetworkUsageDetails();
+			printCostDetails();
+			printNetworkUsageDetails();
+			
 			System.exit(0);
 			break;
 			
 		}
+	}
+	private void printDesaResult() {
+		System.out.println(String.format("RTU: %f",Desa.RTU));
+		System.out.println(String.format("Avg CPU: %f",Desa.avgCPU/Desa.monitorCount));
+		System.out.println(String.format("Max Intances: %d",Desa.maxInstances));
+		
 	}
 	
 	private void printNetworkUsageDetails() {
@@ -221,15 +229,15 @@ public class CustomController extends SimEntity{
 		}
 		
 		Map<Integer, List<AppModule>> deviceToModuleMap = modulePlacement.getDeviceToModuleMap();
-		int cnt = 0;
+		//int cnt = 0;
 		for(Integer deviceId : deviceToModuleMap.keySet()){
 			for(AppModule module : deviceToModuleMap.get(deviceId)){
 				sendNow(deviceId, FogEvents.APP_SUBMIT, application);
 				sendNow(deviceId, FogEvents.LAUNCH_MODULE, module);
-				cnt++;
+				//cnt++;
 			}
 		}
-		System.out.println(cnt);
+		//System.out.println(cnt);
 	}
 
 	public List<FogDevice> getFogDevices() {

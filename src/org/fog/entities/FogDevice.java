@@ -254,7 +254,6 @@ public class FogDevice extends PowerDatacenter {
                 processTupleArrival(ev);
                 break;
             case FogEvents.LAUNCH_MODULE:
-            	
                 processModuleArrival(ev);
                 break;
             case FogEvents.RELEASE_OPERATOR:
@@ -315,7 +314,9 @@ public class FogDevice extends PowerDatacenter {
             case FogEvents.EXECUTE:
             	execute();
             	break;
-       
+            case FogEvents.SCALEUP:
+            	distributeConnections();
+            	break;
             default:
                 break;
         }
@@ -344,6 +345,64 @@ public class FogDevice extends PowerDatacenter {
     
     void execute() {
     	Logger.debug(getName(),"Start Execute");
+    }
+    
+    protected void distributeConnections(){
+    	List<ResCloudlet> connections = new ArrayList<ResCloudlet>();
+		for (FogDevice node : Desa.fogDevices) {
+    		if(node.getName().contains("Node-")) {
+	    		
+    			for (Vm vm : node.getVmList()) {
+				   AppModule operator = (AppModule) vm;
+		            if(operator.getName().contains("emergencyApp-")) {
+		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
+		            	for(int i  = tuples.size()-1; i >=0; i--) {
+		            		if(tuples.get(i).getCloudlet().getClass() == Tuple.class) {
+		            			connections.add(tuples.get(i));
+		            		
+		            		}
+		            	}
+		            	tuples.clear();
+		            }		
+	    		}
+    		}
+    	}
+		
+		int n = connections.size()/Desa.currentInstances;
+		for (FogDevice node : Desa.fogDevices) {
+    		if(node.getName().contains("Node-")) {
+	    		
+    			for (Vm vm : node.getVmList()) {
+				   AppModule operator = (AppModule) vm;
+		            if(operator.getName().contains("emergencyApp-")) {
+		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
+		            	for(int i = 0; i < n; i++) {
+		            		Tuple t = (Tuple)connections.get(0).getCloudlet();
+		            		t.setDestModuleName(operator.getName());
+		            		t.setDestinationDeviceId(vm.getId());
+		            		tuples.add(connections.get(0));
+		            		connections.remove(0);
+		            	}
+		            }		
+	    		}
+    		}
+    	}
+		
+
+		for (FogDevice node : Desa.fogDevices) {
+    		if(node.getName().contains("Node-")) {
+	    		
+    			for (Vm vm : node.getVmList()) {
+				   AppModule operator = (AppModule) vm;
+		            if(operator.getName().contains("emergencyApp-")) {
+		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
+		            	System.out.println(tuples.size());
+		    
+		            }		
+	    		}
+    		}
+    	}
+    	
     }
     
     protected void moduleSend(SimEvent ev) {
@@ -569,7 +628,7 @@ public class FogDevice extends PowerDatacenter {
             }
         }
         if (cloudletCompleted)
-            updateAllocatedMips(null);
+            updateAllocatedMips(null, null);
     }
 
     protected void updateTimingsOnSending(Tuple resTuple) {
@@ -610,7 +669,7 @@ public class FogDevice extends PowerDatacenter {
         return -1;
     }
 
-    protected void updateAllocatedMips(String incomingOperator) {
+    protected void updateAllocatedMips(String incomingOperator, Tuple tuple) {
         getHost().getVmScheduler().deallocatePesForAllVms();
         for (final Vm vm : getHost().getVmList()) {
             if (vm.getCloudletScheduler().runningCloudlets() > 0 || ((AppModule) vm).getName().equals(incomingOperator)) {
@@ -632,21 +691,23 @@ public class FogDevice extends PowerDatacenter {
             }
         }
 
-        updateEnergyConsumption();
-        //updateUtilization();
+        //updateEnergyConsumption();
+        updateUtilization(tuple);
     }
 
-    private void updateUtilization() {
+    private void updateUtilization(Tuple tuple) {
+    	if(tuple == null) return;
     	for (final Vm vm : getHost().getVmList()) {
             AppModule operator = (AppModule) vm;
-
-            operator.updateVmProcessing(CloudSim.clock(), getVmAllocationPolicy().getHost(operator).getVmScheduler()
-                    .getAllocatedMipsForVm(operator));
-            //Desa.totalMips.merge(operator.getName(),  getHost().getTotalAllocatedMipsForVm(vm),Double::sum);
-            Desa.totalMips.put(operator.getName(),  getHost().getTotalAllocatedMipsForVm(vm));
-            if(operator.getName().contains("emergencyApp-")) {
-            	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
-            }
+            if(operator.getName().equals(tuple.getDestModuleName()))
+             	operator.handledMips += tuple.getCloudletLength();
+//            operator.updateVmProcessing(CloudSim.clock(), getVmAllocationPolicy().getHost(operator).getVmScheduler()
+//                    .getAllocatedMipsForVm(operator));
+//            //Desa.totalMips.merge(operator.getName(),  getHost().getTotalAllocatedMipsForVm(vm),Double::sum);
+//            Desa.totalMips.put(operator.getName(),  getHost().getTotalAllocatedMipsForVm(vm));
+//            if(operator.getName().contains("emergencyApp-")) {
+//            	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
+//            }
     	}
   
     	
@@ -913,9 +974,9 @@ public class FogDevice extends PowerDatacenter {
         }
 
         TimeKeeper.getInstance().tupleStartedExecution(tuple);
-        updateAllocatedMips(moduleName);
+        updateAllocatedMips(moduleName, tuple);
         processCloudletSubmit(ev, false);
-        updateAllocatedMips(moduleName);
+        updateAllocatedMips(moduleName, tuple);
 		/*for(Vm vm : getHost().getVmList()){
 			Logger.error(getName(), "MIPS allocated to "+((AppModule)vm).getName()+" = "+getHost().getTotalAllocatedMipsForVm(vm));
 		}*/
@@ -944,6 +1005,7 @@ public class FogDevice extends PowerDatacenter {
 
         module.updateVmProcessing(CloudSim.clock(), getVmAllocationPolicy().getHost(module).getVmScheduler()
                 .getAllocatedMipsForVm(module));
+        Desa.debug.addModule(module);
 
     }
 

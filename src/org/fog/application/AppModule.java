@@ -41,8 +41,7 @@ public class AppModule extends PowerVm{
 	private Map<String, List<Integer>> actuatorSubscriptions;
 	public boolean placed = false;
 	public FogDevice node = null;
-	public double utilization = 0.0;
-	
+
 	public AppModule(
 			int id,
 			String name,

@@ -8,6 +8,10 @@
 
 package org.cloudbus.cloudsim.power;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -15,6 +19,7 @@ import org.cloudbus.cloudsim.CloudletScheduler;
 import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.util.MathUtil;
+import org.fog.test.perfeval.Desa;
 
 /**
  * The class of a VM that stores its CPU utilization history. The history is used by VM allocation
@@ -34,16 +39,17 @@ import org.cloudbus.cloudsim.util.MathUtil;
 public class PowerVm extends Vm {
 
 	/** The Constant HISTORY_LENGTH. */
-	public static final int HISTORY_LENGTH = 100000;
+	public static final int HISTORY_LENGTH = 1000;
 
 	/** The utilization history. */
-	private final List<Double> utilizationHistory = new LinkedList<Double>();
+	public final List<Double> utilizationHistory = new LinkedList<Double>();
 
 	/** The previous time. */
 	private double previousTime;
 
 	/** The scheduling interval. */
 	private double schedulingInterval;
+	public double handledMips = 0.0;
 
 	/**
 	 * Instantiates a new power vm.
@@ -90,7 +96,9 @@ public class PowerVm extends Vm {
 	 */
 	@Override
 	public double updateVmProcessing(final double currentTime, final List<Double> mipsShare) {
-		double time = super.updateVmProcessing(currentTime, mipsShare);
+ 		double time = super.updateVmProcessing(currentTime, mipsShare);
+ 	
+		
 		if (currentTime > getPreviousTime()) { //&& (currentTime - 0.1) % getSchedulingInterval() == 0) {
 			double utilization = getTotalUtilizationOfCpu(getCloudletScheduler().getPreviousTime());
 			
@@ -123,6 +131,32 @@ public class PowerVm extends Vm {
 		}
 		return mad;
 	}
+	
+	public double getUtilizationPositive() {
+		double mean = 0;
+		
+
+		if (!getUtilizationHistory().isEmpty()) {
+			int n = HISTORY_LENGTH;
+			if (HISTORY_LENGTH > getUtilizationHistory().size()) {
+				n = getUtilizationHistory().size();
+			}
+			int cnt= 0;
+			for (int i = 0; i < n; i++) {
+				double d = getUtilizationHistory().get(i);
+				if(d > 0.0) {
+					mean += d;
+					cnt++;
+				}
+				
+			}
+			mean /= cnt;
+		}
+	
+		
+		
+		return mean * getMips();
+	}
 
 	/**
 	 * Gets the utilization mean in percents.
@@ -131,18 +165,30 @@ public class PowerVm extends Vm {
 	 */
 	public double getUtilizationMean() {
 		double mean = 0;
-		if (!getUtilizationHistory().isEmpty()) {
-			int n = HISTORY_LENGTH;
-			if (HISTORY_LENGTH > getUtilizationHistory().size()) {
-				n = getUtilizationHistory().size();
+		
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter(Desa.file,true))) {
+			if (!getUtilizationHistory().isEmpty()) {
+				int n = HISTORY_LENGTH;
+				if (HISTORY_LENGTH > getUtilizationHistory().size()) {
+					n = getUtilizationHistory().size();
+				}
+				for (int i = 0; i < n; i++) {
+					mean += getUtilizationHistory().get(i);
+					writer.write(CloudSim.clock() + "," + getUtilizationHistory().get(i) + "," + mean);
+					writer.write("\n");
+				}
+				mean /= 15;
 			}
-			for (int i = 0; i < n; i++) {
-				mean += getUtilizationHistory().get(i);
-			}
-			mean /= n;
+			writer.write("\n");
+		} catch (IOException e) {
+		    e.printStackTrace();
+		   // return;
 		}
+		
 		return mean * getMips();
 	}
+	
+	
 
 	/**
 	 * Gets the utilization variance in MIPS.

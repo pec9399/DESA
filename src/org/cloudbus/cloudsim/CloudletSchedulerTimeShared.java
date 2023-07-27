@@ -13,6 +13,7 @@ import java.util.List;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.fog.entities.Tuple;
 import org.fog.utils.Debug;
+import org.fog.utils.Logger;
 
 /**
  * CloudletSchedulerTimeShared implements a policy of scheduling performed by a virtual machine.
@@ -25,13 +26,13 @@ import org.fog.utils.Debug;
 public class CloudletSchedulerTimeShared extends CloudletScheduler {
 
 	/** The cloudlet exec list. */
-	private List<? extends ResCloudlet> cloudletExecList;
+	public List<? extends ResCloudlet> cloudletExecList;
 
 	/** The cloudlet paused list. */
 	private List<? extends ResCloudlet> cloudletPausedList;
 
 	/** The cloudlet finished list. */
-	private List<? extends ResCloudlet> cloudletFinishedList;
+	public List<? extends ResCloudlet> cloudletFinishedList;
 
 	/** The current cp us. */
 	protected int currentCPUs;
@@ -65,12 +66,12 @@ public class CloudletSchedulerTimeShared extends CloudletScheduler {
 	public double updateVmProcessing(double currentTime, List<Double> mipsShare) {
 		setCurrentMipsShare(mipsShare);
 		double timeSpam = currentTime - getPreviousTime();
-	
+		
 		for (ResCloudlet rcl : getCloudletExecList()) {
 						
 			rcl.updateCloudletFinishedSoFar((long) (getCapacity(mipsShare) * timeSpam * rcl.getNumberOfPes() * Consts.MILLION));
 			//System.out.println(getTotalCurrentAllocatedMipsForCloudlet(rcl, getPreviousTime()));
-			//OLA System.out.println(CloudSim.clock()+ " : Remaining length of tuple ID "+((Tuple)rcl.getCloudlet()).getActualTupleId()+" = "+rcl.getRemainingCloudletLength());
+			//System.out.println(CloudSim.clock()+ " : Remaining length of tuple ID "+((Tuple)rcl.getCloudlet()).getActualTupleId()+" = "+rcl.getRemainingCloudletLength());
 			
 		}
 
@@ -366,10 +367,26 @@ public class CloudletSchedulerTimeShared extends CloudletScheduler {
 	@Override
 	public double getTotalUtilizationOfCpu(double time) {
 		double totalUtilization = 0;
+		int execcnt = 0;
+		int fincnt =0;
+		String name = "";
 		for (ResCloudlet gl : getCloudletExecList()) {
-			if(!((Tuple)gl.getCloudlet()).getDestModuleName().contains("monitor"))
-			totalUtilization += gl.getCloudlet().getUtilizationOfCpu(time);
+			if(!((Tuple)gl.getCloudlet()).getDestModuleName().contains("monitor")) {
+				totalUtilization += gl.getCloudlet().getUtilizationOfCpu(time);
+				execcnt++;
+				name = ((Tuple)gl.getCloudlet()).getDestModuleName();
+			}
 		}
+		
+		for (ResCloudlet gl : getCloudletFinishedList()) {
+			if(!((Tuple)gl.getCloudlet()).getDestModuleName().contains("monitor")) {
+				totalUtilization += gl.getCloudlet().getUtilizationOfCpu(time);
+				fincnt++;
+				name = ((Tuple)gl.getCloudlet()).getDestModuleName();
+			}
+		}
+		//if(execcnt+fincnt > 0)
+		//Logger.debug(name,""+execcnt + " " + fincnt);
 		
 		return totalUtilization;
 	}
@@ -434,7 +451,7 @@ public class CloudletSchedulerTimeShared extends CloudletScheduler {
 	 * @return the cloudlet exec list
 	 */
 	@SuppressWarnings("unchecked")
-	protected <T extends ResCloudlet> List<T> getCloudletExecList() {
+	public <T extends ResCloudlet> List<T> getCloudletExecList() {
 		return (List<T>) cloudletExecList;
 	}
 
