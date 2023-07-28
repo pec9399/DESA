@@ -33,10 +33,18 @@ public class Debug extends JFrame{
 		HashMap<String, JProgressBar> moduleToUtilMap = new HashMap<String, JProgressBar>();
 		Font deviceNameFont = new Font("Raleway", Font.BOLD, 15);
 		Font moduleNameFont = new Font("Raleway", Font.PLAIN, 12);
-		JLabel time;
-		JPanel timer;
+		JLabel time, avg, instance;
+		JPanel timer, util;
+		JFrame stat;
 		
 		public Debug() {
+			stat = new JFrame();
+			stat.setSize(500,300);
+			stat.setResizable(true);
+			stat.setVisible(true);
+			stat.setTitle("Statistics");
+			stat.setLayout(new FlowLayout());
+			
 	        setSize(1920, 1080); //크기 설정
 	        setResizable(true);
 	        //GridLayout gridLayout = new GridLayout(Params.numFogNodes/2, Params.numFogNodes/2);
@@ -46,8 +54,10 @@ public class Debug extends JFrame{
 	        setTitle("Realtime monitor");
 	      
 	        addTimer();
+	        addUtil();
 
 	        setVisible(true);
+	        
 		}	
 		
 		public void addTimer() {
@@ -70,7 +80,40 @@ public class Debug extends JFrame{
 			
 			timer.setVisible(true);
 			
-			add(timer);
+			stat.add(timer);
+		}
+		
+		
+		public void addUtil() {
+			 //timer
+	    	util = new JPanel();
+	    	util.setPreferredSize(new Dimension(200,70));
+	    	util.setBorder(BorderFactory.createLineBorder(Color.black));
+	    	util.setLayout(new FlowLayout());
+			
+			JLabel label = new JLabel("Avg Utilization");
+			label.setHorizontalAlignment(JLabel.CENTER);
+			label.setPreferredSize(new Dimension(200,15));
+			label.setFont(deviceNameFont);
+			util.add(label);
+			
+			avg = new JLabel("");
+			avg.setHorizontalAlignment(JLabel.CENTER);
+			avg.setFont(moduleNameFont);
+			avg.setPreferredSize(new Dimension(190,15));
+			
+			instance = new JLabel("");
+			instance.setHorizontalAlignment(JLabel.CENTER);
+			instance.setFont(moduleNameFont);
+			instance.setPreferredSize(new Dimension(190,15));
+			
+			util.add(avg);
+			util.add(instance);
+			
+			avg.setVisible(true);
+			instance.setVisible(true);
+			setInstance(Params.jmin);
+			stat.add(util);
 		}
 		
 		public void addNodes(List<FogDevice> l) {
@@ -157,6 +200,18 @@ public class Debug extends JFrame{
 			time.setText(""+t);
 			timer.revalidate();
 			timer.repaint();
+		}
+		
+		public void setAvgUtil(double t) {
+
+			avg.setText(String.format("%.2f",t)+"%");
+			util.revalidate();
+			util.repaint();
+		}
+		public void setInstance(int i) {
+			instance.setText("Current instances: "+i);
+			util.revalidate();
+			util.repaint();
 		}
 }
 

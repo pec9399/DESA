@@ -298,6 +298,8 @@ public class Cloud extends FogDevice {
 		Desa.maxInstances = Math.max(Desa.currentInstances, Desa.maxInstances);
 		Desa.controller.submitApplication(Desa.emergencyApp, new ModulePlacementMapping(Desa.fogDevices,Desa.emergencyApp, Desa.moduleMapping));
 		
+		Desa.debug.setInstance(Desa.currentInstances);
+		
 		for(String appId : Desa.controller.applications.keySet()){
 			if(appId.equals("emergencyApp")) {
 				if(Desa.controller.getAppLaunchDelays().get(appId)==0)
@@ -422,24 +424,24 @@ public class Cloud extends FogDevice {
 	        	}
         	}
         } else if(tuple.getTupleType().equals("metric")) {
-        	double avg = 0.0;
-        	for (FogDevice node : Desa.fogDevices) {
-        		if(node.getName().contains("Node-")) {
-        			for (Vm vm : node.getVmList()) {
-    				   AppModule operator = (AppModule) vm;
-    		            if(operator.getName().contains("emergencyApp-")) {
-    		            	double utilization = operator.handledMips / operator.getMips()/((int)CloudSim.clock()%Params.monitorInterval);          	
-    		            	//Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
-    		            	avg += utilization;
-    		            	if(utilization > Params.upperThreshold) {
-    		            		Desa.RTU = -1;
-    		            	}
-    		            	Desa.debug.updateUtilization(operator, utilization);          
-    		            }		
-    	    		}
-        		}
-        	}
-        	avg /= Desa.currentInstances;
+//        	double avg = 0.0;
+//        	for (FogDevice node : Desa.fogDevices) {
+//        		if(node.getName().contains("Node-")) {
+//        			for (Vm vm : node.getVmList()) {
+//    				   AppModule operator = (AppModule) vm;
+//    		            if(operator.getName().contains("emergencyApp-")) {
+//    		            	double utilization = operator.handledMips / operator.getMips()/((int)CloudSim.clock()%Params.monitorInterval);          	
+//    		            	//Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
+//    		            	avg += utilization;
+//    		            	if(utilization > Params.upperThreshold) {
+//    		            		Desa.RTU = -1;
+//    		            	}
+//    		            	Desa.debug.updateUtilization(operator, utilization);          
+//    		            }		
+//    	    		}
+//        		}
+//        	}
+//        	avg /= Desa.currentInstances;
         	//Logger.debug(getName(), String.format("Average utilization: %.2f %%", avg));
         }
 

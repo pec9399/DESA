@@ -18,10 +18,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.cloudbus.cloudsim.Log;
+import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.predicates.Predicate;
 import org.cloudbus.cloudsim.core.predicates.PredicateAny;
 import org.cloudbus.cloudsim.core.predicates.PredicateNone;
+import org.fog.application.AppModule;
+import org.fog.entities.FogDevice;
 import org.fog.test.perfeval.Desa;
+import org.fog.test.perfeval.Params;
 import org.fog.utils.Logger;
 
 /**
@@ -514,6 +518,27 @@ public class CloudSim {
 		SimEntity ent;
 		boolean queue_empty;
 		Desa.debug.setTime(clock);
+		
+		double avg = 0.0;
+    	for (FogDevice node : Desa.fogDevices) {
+    		if(node.getName().contains("Node-")) {
+    			for (Vm vm : node.getVmList()) {
+				   AppModule operator = (AppModule) vm;
+		            if(operator.getName().contains("emergencyApp-")) {
+		            	double utilization = operator.handledMips / operator.getMips()/((int)CloudSim.clock()%Params.monitorInterval);          	
+		            	//Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
+		            	avg += utilization;
+		            	if(utilization > Params.upperThreshold) {
+		            		Desa.RTU = -1;
+		            	}
+		            	Desa.debug.updateUtilization(operator, utilization);          
+		            }		
+	    		}
+    		}
+    	}
+    	avg /= Desa.currentInstances;
+		Desa.debug.setAvgUtil(avg);
+		
 		int entities_size = entities.size();
 
 		for (int i = 0; i < entities_size; i++) {
