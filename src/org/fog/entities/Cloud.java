@@ -321,7 +321,7 @@ public class Cloud extends FogDevice {
 	    		
     			for (Vm vm : node.getVmList()) {
 				   AppModule operator = (AppModule) vm;
-		            if(operator.getName().contains("emergencyApp-")) {
+		            if(operator.getName().contains("emergencyApp-") && !operator.getName().contains("monitor")) {
 		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
 		            	for(int i  = tuples.size()-1; i >=0; i--) {
 		            		if(tuples.get(i).getCloudlet().getClass() == Tuple.class) {
@@ -341,7 +341,7 @@ public class Cloud extends FogDevice {
 	    		
     			for (Vm vm : node.getVmList()) {
 				   AppModule operator = (AppModule) vm;
-		            if(operator.getName().contains("emergencyApp-")) {
+		            if(operator.getName().contains("emergencyApp-")&& !operator.getName().contains("monitor")) {
 		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
 		            	for(int i = 0; i < n; i++) {
 		            		Tuple t = (Tuple)connections.get(0).getCloudlet();
@@ -396,54 +396,35 @@ public class Cloud extends FogDevice {
         		currentInstances = Desa.currentInstances;
         	}
         	
-        	
+        	try {
         	for(int i = 1; i <= numRequest; i++) {
         		int cur = (cnt % currentInstances)+1;
 	        	Desa.connections.transmit("emergencyApp-"+cur, Desa.emergencyApp.getModuleByName("emergencyApp-"+cur).node.getId(), (int)(Math.random()*Params.requestInterval));
 	        	cnt++;
+        	}}catch(Exception e) {
+        		e.printStackTrace();
         	}
         	
-        } else if(tuple.getTupleType().equals("monitor")) {
-        	int currentInstances = -1;
-        	if(!Desa.hpa) {
+        } else if(tuple.getTupleType().equals("monitor")) { //HPA's monitor
+        	
+       
+        	//hpa case
+        	if(Desa.hpa) {
+        		Logger.debug(getName(),"Start MAPE");
+        		monitor();
+        	} else {
+        		
+        		int currentInstances = -1;
         		for(AppModule m : Desa.emergencyApp.getModules()) {
 	        		if(m.getName().indexOf('-') == m.getName().lastIndexOf('-'))
 	        			currentInstances++;
 	        	}
-        	} else {
-        		currentInstances = Desa.emergencyApp.getModules().size()-1;
-        	}
-        	Logger.debug(getName(),"Start MAPE");
-        	//hpa case
-        	if(Desa.hpa) {
-        		monitor();
-        	//desa case
-        	} else {
-	        	for(int i = 1; i <= currentInstances; i++) {
+        		Desa.originalInstance = currentInstances;
+        		for(int i = 1; i <= currentInstances; i++) {
 	        		Desa.connections.transmit("emergencyApp-"+i+"-monitor", Desa.emergencyApp.getModuleByName("emergencyApp-"+i+"-monitor").node.getId(), 0);
 	        	}
         	}
-        } else if(tuple.getTupleType().equals("metric")) {
-//        	double avg = 0.0;
-//        	for (FogDevice node : Desa.fogDevices) {
-//        		if(node.getName().contains("Node-")) {
-//        			for (Vm vm : node.getVmList()) {
-//    				   AppModule operator = (AppModule) vm;
-//    		            if(operator.getName().contains("emergencyApp-")) {
-//    		            	double utilization = operator.handledMips / operator.getMips()/((int)CloudSim.clock()%Params.monitorInterval);          	
-//    		            	//Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
-//    		            	avg += utilization;
-//    		            	if(utilization > Params.upperThreshold) {
-//    		            		Desa.RTU = -1;
-//    		            	}
-//    		            	Desa.debug.updateUtilization(operator, utilization);          
-//    		            }		
-//    	    		}
-//        		}
-//        	}
-//        	avg /= Desa.currentInstances;
-        	//Logger.debug(getName(), String.format("Average utilization: %.2f %%", avg));
-        }
+        } 
 
         	
     	//Logger.debug(getName(), "Received tuple " + tuple.getCloudletId() + " with tupleType = " + tuple.getTupleType() + "\t| Source : " +

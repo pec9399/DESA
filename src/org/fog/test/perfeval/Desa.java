@@ -62,7 +62,7 @@ public class Desa {
     public static CustomRequest connections, monitorRequest; 
     public static Cloud cloud;
     public static Map<String, Double> totalMips = new HashMap<String,Double>();
-	public static boolean hpa = true;
+    public static FogBroker broker1;
     public static CustomController controller;
     public static ModuleMapping moduleMapping;
     public static int maxInstances = 0;
@@ -70,12 +70,13 @@ public class Desa {
     public static double avgCPU = 0.0;
     public static int monitorCount = 0;
     public static File file = new File("C:\\Users\\WebEng\\Desktop\\debug.csv");
-    public static Debug debug;
+    public static Debug debug = new Debug();
+    public static int originalInstance = Params.jmin;
+    
+	public static boolean hpa = false;
+    
 	public static void main(String args[]) {
 		try {
-			
-			
-		
 			Log.disable(); 
 			Logger.ENABLED = true;
 		    int num_user = 1; 
@@ -101,7 +102,7 @@ public class Desa {
     			
     		}
 		    
-    		FogBroker broker1 = new FogBroker("broker-1");
+    		broker1 = new FogBroker("broker-1");
     		Application registry = createGlobalServiceRegistry("registry", broker1.getId());
     		registry.setUserId(broker1.getId());
     			
@@ -126,6 +127,7 @@ public class Desa {
     		connections.setGatewayDeviceId(cloud.getId());
     		sensors.add(connections);
     		
+    		
     		CustomRequest metric = new CustomRequest("metric","metric",broker1.getId(),"metric-server",new DeterministicDistribution(1000));
     		metric.setGatewayDeviceId(cloud.getId());
     		sensors.add(metric);
@@ -136,10 +138,6 @@ public class Desa {
     		
     		//hpa
     		if(hpa) {
-	    		moduleMapping.addModuleToDevice("monitorComponent", "cloud");
-	    		moduleMapping.addModuleToDevice("analyzeComponent", "cloud");
-	    		moduleMapping.addModuleToDevice("planComponent", "cloud");
-	    		moduleMapping.addModuleToDevice("executeComponent", "cloud");
 	    		moduleMapping.addModuleToDevice("metric-server", "cloud");
     		} else {
     			
@@ -153,7 +151,7 @@ public class Desa {
     		controller.submitApplication(emergencyApp, new ModulePlacementMapping(fogDevices,emergencyApp, moduleMapping));
     		controller.submitApplication(metricServer, new ModulePlacementMapping(fogDevices,metricServer, moduleMapping));
     		
-    		debug = new Debug();
+    	
     		debug.addNodes(fogDevices);
     		
     		
@@ -295,7 +293,7 @@ public class Desa {
     	Application application = Application.createApplication(appId, userId);
   		ArrayList<String> modules = new ArrayList<String>();
   		
-  		application.addAppModule("emergencyApp", 1000,1000,1000);
+  		application.addAppModule("emergencyApp", 1000,1000,10);
  
   		
   		application.addAppEdge("connection", "emergencyApp", Params.requestCPULength, Params.requestNetworkLength, "connection", Tuple.UP, AppEdge.SENSOR);
@@ -313,18 +311,7 @@ public class Desa {
     	Application application = Application.createApplication(appId, userId);
   		ArrayList<String> modules = new ArrayList<String>();
   		
-  		if(hpa) {
-	  		application.addAppModule("monitorComponent", 10,10,10);
-	  		modules.add("monitorComponent");
-	  		application.addAppModule("analyzeComponent", 10,10,10);
-	  		modules.add("analyzeComponent");
-	  		application.addAppModule("planComponent", 10,10,10);
-	  		modules.add("planComponent");
-	  		application.addAppModule("executeComponent", 10,10,10);
-	  		modules.add("executeComponent");
-  		} else {
-
-  		}
+  		
   		application.addAppEdge("monitor", "monitorComponent", Params.requestCPULength, Params.requestNetworkLength, "monitor", Tuple.UP, AppEdge.SENSOR);
   		
   		final AppLoop loop1 = new AppLoop(modules);

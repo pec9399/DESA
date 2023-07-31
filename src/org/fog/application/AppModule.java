@@ -7,11 +7,19 @@ import java.util.Map;
 
 import org.apache.commons.math3.util.Pair;
 import org.cloudbus.cloudsim.CloudletScheduler;
+import org.cloudbus.cloudsim.Log;
+import org.cloudbus.cloudsim.Vm;
+import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.power.PowerVm;
 import org.fog.application.selectivity.SelectivityModel;
 import org.fog.entities.FogDevice;
+import org.fog.placement.ModulePlacementMapping;
 import org.fog.scheduler.TupleScheduler;
+import org.fog.test.perfeval.Desa;
+import org.fog.test.perfeval.Params;
+import org.fog.utils.FogEvents;
 import org.fog.utils.FogUtils;
+import org.fog.utils.Logger;
 
 /**
  * Class representing an application module, the processing elements of the application model of iFogSim.
@@ -41,7 +49,9 @@ public class AppModule extends PowerVm{
 	private Map<String, List<Integer>> actuatorSubscriptions;
 	public boolean placed = false;
 	public FogDevice node = null;
-
+    private double averageCPUUtilization = 0.0;
+    private int desiredReplicas = 0;
+    
 	public AppModule(
 			int id,
 			String name,
@@ -134,4 +144,76 @@ public class AppModule extends PowerVm{
 	public void setNumInstances(int numInstances) {
 		this.numInstances = numInstances;
 	}
+	   //DESA's MAPE
+    public boolean  monitor(double utilization) {
+    	
+         averageCPUUtilization = utilization;
+         handledMips = 0.0;
+         Logger.debug(getName(), String.format("%.2f%%",averageCPUUtilization));
+           
+    	return analyze();
+    }
+    public boolean analyze() {
+		    //	Logger.debug(getName(),"Start Analyze");
+		    	if(averageCPUUtilization > Params.upperThreshold) {
+		    		desiredReplicas = (int)Math.ceil((averageCPUUtilization/(Params.upperThreshold*100)));
+		    		
+		    	}
+		    	if(desiredReplicas > 1)
+		    		return plan();
+		    
+		    	return false;
+		    }
+		    
+    public  boolean plan() {
+		    	//Logger.debug(getName(),"Start Plan");
+		    	return execute();
+		    }
+		    
+    public  boolean execute() {
+		    	Logger.debug(getName(),"Scale " + (desiredReplicas-1) + " instances");
+		    	Desa.currentInstances += desiredReplicas-1;
+				Desa.maxInstances = Math.max(Desa.currentInstances, Desa.maxInstances);
+				Desa.controller.submitApplication(Desa.emergencyApp,10, new ModulePlacementMapping(Desa.fogDevices,Desa.emergencyApp, Desa.moduleMapping));
+				
+				Desa.debug.setInstance(Desa.currentInstances);
+
+				for(String appId : Desa.controller.applications.keySet()){
+					if(appId.equals("emergencyApp")) {
+						Desa.controller.processAppSubmit(Desa.controller.applications.get(appId));
+					}
+				}
+				return true;
+		    	//Logger.debug(getName(),"Start Execute");
+		    }
+	protected void send(int entityId, double delay, int cloudSimTag, Object data) {
+		if (entityId < 0) {
+			return;
+		}
+
+		// if delay is -ve, then it doesn't make sense. So resets to 0.0
+		if (delay < 0) {
+			delay = 0;
+		}
+
+		if (Double.isInfinite(delay)) {
+			throw new IllegalArgumentException("The specified delay is infinite value");
+		}
+
+		if (entityId < 0) {
+			Log.printLine(getName() + ".send(): Error - " + "invalid entity id " + entityId);
+			return;
+		}
+
+		int srcId = getId();
+
+		schedule(entityId, delay, cloudSimTag, data);
+	}
+	public void schedule(int dest, double delay, int tag, Object data) {
+		if (!CloudSim.running()) {
+			return;
+		}
+		CloudSim.send(getId(), dest, delay, tag, data);
+	}
+
 }

@@ -15,6 +15,7 @@ import org.cloudbus.cloudsim.lists.PeList;
 import org.cloudbus.cloudsim.provisioners.BwProvisioner;
 import org.cloudbus.cloudsim.provisioners.RamProvisioner;
 import org.fog.application.AppModule;
+import org.fog.utils.Logger;
 
 /**
  * Host executes actions related to management of virtual machines (e.g., creation and destruction).
@@ -202,26 +203,26 @@ public class Host {
 	 */
 	public boolean vmCreate(Vm vm) {
 		if (getStorage() < vm.getSize()) {
-			Log.printLine("[VmScheduler.vmCreate] Allocation of VM #" + vm.getId() + " to Host #" + getId()
+			Logger.debug("system","[VmScheduler.vmCreate] Allocation of VM #" + vm.getId() + " to Host #" + getId()
 					+ " failed by storage");
 			return false;
 		}
 
 		if (!getRamProvisioner().allocateRamForVm(vm, vm.getCurrentRequestedRam())) {
-			Log.printLine("[VmScheduler.vmCreate] Allocation of VM #" + vm.getId() + " to Host #" + getId()
+			Logger.debug("system","[VmScheduler.vmCreate] Allocation of VM #" + vm.getId() + " to Host #" + getId()
 					+ " failed by RAM");
 			return false;
 		}
 
 		if (!getBwProvisioner().allocateBwForVm(vm, vm.getCurrentRequestedBw())) {
-			Log.printLine("[VmScheduler.vmCreate] Allocation of VM #" + vm.getId() + " to Host #" + getId()
+			Logger.debug("system","[VmScheduler.vmCreate] Allocation of VM #" + vm.getId() + " to Host #" + getId()
 					+ " failed by BW");
 			getRamProvisioner().deallocateRamForVm(vm);
 			return false;
 		}
 
 		if (!getVmScheduler().allocatePesForVm(vm, vm.getCurrentRequestedMips())) {
-			Log.printLine("[VmScheduler.vmCreate] Allocation of VM #" + vm.getId() + " to Host #" + getId()
+			Logger.debug("system","[VmScheduler.vmCreate] Allocation of VM #" + vm.getId() + " to Host #" + getId()
 					+ " failed by MIPS");
 			getRamProvisioner().deallocateRamForVm(vm);
 			getBwProvisioner().deallocateBwForVm(vm);

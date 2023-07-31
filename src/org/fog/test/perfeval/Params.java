@@ -3,7 +3,7 @@ package org.fog.test.perfeval;
 public class Params {
 	public static final boolean userLog = false;
 	public static final boolean tupleLog = false;
-	public static final int numFogNodes = 10;
+	public static final int numFogNodes = 5;
 	public static final int jmax = 20;
 	public static final int jmin = 4;
 	public static final int maxInstancePerNode = 2;

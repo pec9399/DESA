@@ -8,6 +8,7 @@ import org.cloudbus.cloudsim.core.CloudSim;
 import org.fog.application.AppModule;
 import org.fog.application.Application;
 import org.fog.entities.FogDevice;
+import org.fog.test.perfeval.Desa;
 
 public abstract class ModulePlacement {
 
@@ -61,12 +62,14 @@ public abstract class ModulePlacement {
 			if(!getModuleToDeviceMap().containsKey(module.getName()))
 				getModuleToDeviceMap().put(module.getName(), new ArrayList<Integer>());
 			getModuleToDeviceMap().get(module.getName()).add(device.getId());
+			
 			return true;
 		} else {
 			System.err.println("Module "+module.getName()+" cannot be created on device "+device.getName());
 			System.err.println("Terminating");
 			return false;
 		}
+		
 	}
 
 	public FogDevice getDeviceByName(String deviceName) {

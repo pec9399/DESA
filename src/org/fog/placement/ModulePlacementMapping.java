@@ -8,16 +8,20 @@ import java.util.Map;
 import org.apache.commons.math3.util.Pair;
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.core.CloudSim;
+import org.fog.application.AppEdge;
 import org.fog.application.AppLoop;
 import org.fog.application.AppModule;
 import org.fog.application.Application;
 import org.fog.application.selectivity.SelectivityModel;
 import org.fog.entities.FogDevice;
+import org.fog.entities.Tuple;
 import org.fog.scheduler.TupleScheduler;
 import org.fog.test.perfeval.Desa;
 import org.fog.test.perfeval.Params;
 import org.fog.utils.FogEvents;
 import org.fog.utils.FogUtils;
+import org.fog.utils.distribution.CustomRequest;
+import org.fog.utils.distribution.DeterministicDistribution;
 
 public class ModulePlacementMapping extends ModulePlacement{
 
@@ -41,6 +45,7 @@ public class ModulePlacementMapping extends ModulePlacement{
 		updateModules(Desa.currentInstances);
 	}
 	
+
 	public void updateModules(int n) {
 		//handle unmapped modules
 				List<AppModule> modules = getApplication().getModules();
@@ -51,45 +56,35 @@ public class ModulePlacementMapping extends ModulePlacement{
 						//Desa.emergencyApp.setModules(new ArrayList<AppModule>());
 						for(int i = 0; i < n;i++) {
 							//round-robin
+							
+							
 							int cur = (cnt % Params.numFogNodes)+1;
+							if(getApplication().getModuleByName(instance.getName()+"-"+(cnt+1)) != null) {
+								cnt++;
+								continue;
+							}
 							AppModule module = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+(cnt+1), instance.getAppId(), instance.getUserId(),
 									instance.getMips(), instance.getRam(), instance.getBw(), instance.getSize(), instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
 							
-						
-							
+							String monitorComponent = instance.getName()+"-"+(cnt+1)+"-monitor";							
+							Desa.emergencyApp.addAppEdge(monitorComponent, monitorComponent, Params.requestCPULength, Params.requestNetworkLength, Desa.emergencyApp.getAppId(), Tuple.UP, AppEdge.SENSOR);
 							FogDevice node = getDeviceByName("Node-"+cur);
 							module.node = node;
+
 							
 							
 							createModuleInstanceOnDevice(module,node);
 							Desa.emergencyApp.getModules().add(module);
 
-							AppModule monitor, analyze, plan, execute;
+							AppModule monitor;
 							if(!Desa.hpa) {
-								 monitor = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-monitor", instance.getAppId(), instance.getUserId(),
+								 monitor = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+(cnt+1)+"-monitor", instance.getAppId(), instance.getUserId(),
 										10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
-								 analyze = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-analyze", instance.getAppId(), instance.getUserId(),
-										10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
-								 plan = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-plan", instance.getAppId(), instance.getUserId(),
-										10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
-								 execute = new AppModule(FogUtils.generateEntityId(), instance.getName()+"-"+cur+"-execute", instance.getAppId(), instance.getUserId(),
-										10, 10, instance.getBw(),10, instance.getVmm(), new TupleScheduler(instance.getMips(), 1), new HashMap<Pair<String, String>, SelectivityModel>());
-								 
 								 monitor.node = node;
-								 analyze.node = node;
-								 plan.node = node;
-								 execute.node = node;
+								
 								 createModuleInstanceOnDevice(monitor, node);
-								 createModuleInstanceOnDevice(analyze, node);
-								 createModuleInstanceOnDevice(plan, node);
-								 createModuleInstanceOnDevice(execute, node);
+							
 								 Desa.emergencyApp.getModules().add(monitor);
-								 Desa.emergencyApp.getModules().add(analyze);
-								 Desa.emergencyApp.getModules().add(plan);
-								 Desa.emergencyApp.getModules().add(execute);
-
-								 
-								 
 							}	
 							
 							Map<Integer, List<AppModule>> deviceToModuleMap = getDeviceToModuleMap();
@@ -100,54 +95,15 @@ public class ModulePlacementMapping extends ModulePlacement{
 					  		final AppLoop loop1 = new AppLoop(Desa.emergencyApp.getModuleNames());
 					  		List<AppLoop> loops = new ArrayList<AppLoop>(){{add(loop1);}};
 					  		Desa.emergencyApp.setLoops(loops);
-					
+					  		
 							
 							cnt++;			 
 						}
-						
+						break;
 					}
 				}
 	}
 	
-	protected void sendNow(int entityId, int cloudSimTag, Object data) {
-		send(entityId, 0, cloudSimTag, data);
-	}
-	protected void send(int entityId, double delay, int cloudSimTag, Object data) {
-		if (entityId < 0) {
-			return;
-		}
-
-		// if delay is -ve, then it doesn't make sense. So resets to 0.0
-		if (delay < 0) {
-			delay = 0;
-		}
-
-		if (Double.isInfinite(delay)) {
-			throw new IllegalArgumentException("The specified delay is infinite value");
-		}
-
-		if (entityId < 0) {
-			//Log.printLine(getName() + ".send(): Error - " + "invalid entity id " + entityId);
-			return;
-		}
-
-		int srcId = Desa.cloud.getId();
-		if (entityId != srcId) {// does not delay self messages
-			//delay += getNetworkDelay(srcId, entityId);
-		}
-
-		schedule(entityId, delay, cloudSimTag, data);
-	}
-	
-	public void schedule(int dest, double delay, int tag, Object data) {
-		if (!CloudSim.running()) {
-			return;
-		}
-		CloudSim.send(Desa.cloud.getId(), dest, delay, tag, data);
-	}
-
-	
-
 	public ModulePlacementMapping(List<FogDevice> fogDevices, Application application, 
 			ModuleMapping moduleMapping){
 		this.setFogDevices(fogDevices);
@@ -171,5 +127,7 @@ public class ModulePlacementMapping extends ModulePlacement{
 		this.moduleMapping = moduleMapping;
 	}
 
+	
+	
 	
 }

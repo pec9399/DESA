@@ -28,7 +28,7 @@ public class CustomController extends SimEntity{
 	public static boolean ONLY_CLOUD = false;
 		
 	private List<FogDevice> fogDevices;
-	private List<CustomRequest> sensors;
+	public List<CustomRequest> sensors;
 	private List<Actuator> actuators;
 	
 	public Map<String, Application> applications;
@@ -224,16 +224,17 @@ public class CustomController extends SimEntity{
 		getApplications().put(application.getAppId(), application);
 		
 		ModulePlacement modulePlacement = getAppModulePlacementPolicy().get(application.getAppId());
+	
 		for(FogDevice fogDevice : fogDevices){
-			sendNow(fogDevice.getId(), FogEvents.ACTIVE_APP_UPDATE, application);
+			send(fogDevice.getId(),10, FogEvents.ACTIVE_APP_UPDATE, application);
 		}
 		
 		Map<Integer, List<AppModule>> deviceToModuleMap = modulePlacement.getDeviceToModuleMap();
 		//int cnt = 0;
 		for(Integer deviceId : deviceToModuleMap.keySet()){
 			for(AppModule module : deviceToModuleMap.get(deviceId)){
-				sendNow(deviceId, FogEvents.APP_SUBMIT, application);
-				sendNow(deviceId, FogEvents.LAUNCH_MODULE, module);
+				send(deviceId, 10,FogEvents.APP_SUBMIT, application);
+				send(deviceId, 10,FogEvents.LAUNCH_MODULE, module);
 				//cnt++;
 			}
 		}

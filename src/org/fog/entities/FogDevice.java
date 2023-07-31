@@ -16,6 +16,7 @@ import org.fog.application.AppLoop;
 import org.fog.application.AppModule;
 import org.fog.application.Application;
 import org.fog.mobilitydata.Clustering;
+import org.fog.placement.ModulePlacementMapping;
 import org.fog.policy.AppModuleAllocationPolicy;
 import org.fog.scheduler.StreamOperatorScheduler;
 import org.fog.test.perfeval.Desa;
@@ -91,6 +92,9 @@ public class FogDevice extends PowerDatacenter {
     protected boolean isClusterLinkBusy; //Flag denoting whether the link connecting to cluster from this FogDevice is busy
     protected double clusterLinkBandwidth;
     static int cnt = 0;
+    private double averageCPUUtilization = 0.0;
+    private int desiredReplicas = 0;
+    private int originalInstance = 0;
 
     public FogDevice(
             String name,
@@ -302,18 +306,6 @@ public class FogDevice extends PowerDatacenter {
                 //This message is received by the devices to start their clustering
                 processClustering(this.getParentId(), this.getId(), ev);
                 break;
-            case FogEvents.MONITOR:
-            	monitor();
-            	break;
-            case FogEvents.ANALYZE:
-            	analyze();
-            	break;
-            case FogEvents.PLAN:
-            	plan();
-            	break;
-            case FogEvents.EXECUTE:
-            	execute();
-            	break;
             case FogEvents.SCALEUP:
             	distributeConnections();
             	break;
@@ -322,30 +314,28 @@ public class FogDevice extends PowerDatacenter {
         }
     }
     //DESA's MAPE
-    void monitor() {
-    	Logger.debug(getName(),"Start Monitor");
-    	for (final Vm vm : getHost().getVmList()) {
-            AppModule operator = (AppModule) vm;
-            if(operator.getName().contains("emergencyApp-")) {
-            	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
+    void monitor(String moduleName) {
+    	//Logger.debug(getName(),"Start Monitor");
+    	if(Integer.parseInt(moduleName.substring(moduleName.indexOf("-")+1,moduleName.lastIndexOf("-"))) > originalInstance)
+    		return;
+    	List<Vm> l= getHost().getVmList();
+    	
+    	for (int i = 0; i<l.size(); i++) {
+            AppModule operator = (AppModule) l.get(i);
+            if(operator.getName().equals(moduleName.substring(0,moduleName.lastIndexOf("-"))))  {
+          
+            
+            	operator.monitor(operator.handledMips / operator.getMips()/(Params.monitorInterval));
+            	
+            	//averageCPUUtilization = operator.handledMips / operator.getMips()/(Params.monitorInterval);
+            	//operator.handledMips = 0.0;
+            	//Logger.debug(operator.getName(), String.format("%.2f%%",averageCPUUtilization));
             }
     	}
-    	send(getId(), 0, FogEvents.ANALYZE, null);
+    	//send(getId(), 0, FogEvents.ANALYZE, null);
     }
     
-    void analyze() {
-    	Logger.debug(getName(),"Start Analyze");
-    	send(getId(), 0, FogEvents.PLAN, null);
-    }
-    
-    void plan() {
-    	Logger.debug(getName(),"Start Plan");
-    	send(getId(), 0, FogEvents.EXECUTE, null);
-    }
-    
-    void execute() {
-    	Logger.debug(getName(),"Start Execute");
-    }
+  
     
     protected void distributeConnections(){
     	List<ResCloudlet> connections = new ArrayList<ResCloudlet>();
@@ -806,35 +796,9 @@ public class FogDevice extends PowerDatacenter {
 			System.out.println(++numClients);
 		}*/
         
-        if(tuple.getDestModuleName().equals("registry")) {
-        	
-        	int numRequest = (int) (tuple.getCloudletLength() / Params.requestCPULength);
-        	//Logger.debug("registry", "Received " +numRequest + " requests, connect to instances..");
-        	int currentInstances = Desa.emergencyApp.getModules().size()-1;
-        	for(int i = 1; i <= numRequest; i++) {
-        		int cur = (cnt % currentInstances)+1;
-	        	Desa.connections.transmit("emergencyApp-"+cur, Desa.emergencyApp.getModuleByName("emergencyApp-"+cur).node.getId(), CloudSim.getMinTimeBetweenEvents());
-	        	cnt++;
-        	}
-        	
-        	
-        } else if(tuple.getDestModuleName().contains("emergencyApp") && (tuple.getDestModuleName().indexOf('-') == tuple.getDestModuleName().lastIndexOf('-'))){
-        	
-        	if(Params.userLog)Logger.debug(getName(),tuple.getDestModuleName() + " User connected");
-        	
-        	
-        } else if(tuple.getTupleType().contains("connection")) {
-        	//Logger.debug(getName(), "Start MAPE");
-        	sendNow(getId(), FogEvents.MONITOR, null);
-        	/*
-	        	Logger.debug(getName(),tuple.getDestModuleName() + "Collect metric from nodes");
-	        	for (final Vm vm : getHost().getVmList()) {
-	                AppModule operator = (AppModule) vm;
-	                if(operator.getName().contains("emergencyApp-")) {
-	                	Logger.debug(operator.getName(),""+vm.getCloudletScheduler().getTotalUtilizationOfCpu(lastUtilizationUpdateTime)*100 + "%");
-	                }
-	        	}
-        	*/
+        if(tuple.getDestModuleName().contains("monitor")) {
+        	originalInstance = Desa.originalInstance;
+        	monitor(tuple.getDestModuleName());
         }
 
         	
@@ -1000,7 +964,7 @@ public class FogDevice extends PowerDatacenter {
         if (module.isBeingInstantiated()) {
             module.setBeingInstantiated(false);
         }
-
+        
       //  initializePeriodicTuples(module);
 
         module.updateVmProcessing(CloudSim.clock(), getVmAllocationPolicy().getHost(module).getVmScheduler()
