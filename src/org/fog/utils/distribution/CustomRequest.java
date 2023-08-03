@@ -78,7 +78,8 @@ public class CustomRequest extends Sensor{
 	}
 	
 	public void transmit(int numRequest){
-			if(numRequest == -1) {
+			if(numRequest <= 0) {
+				Logger.debug("system", "Request end, stop simulation");
 				send(getId(), 0, FogEvents.STOP_SIMULATION);
 			}
 			AppEdge _edge = null;

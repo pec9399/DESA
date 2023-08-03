@@ -518,7 +518,7 @@ public class CloudSim {
 		SimEntity ent;
 		boolean queue_empty;
 		Desa.debug.setTime(clock);
-		
+		boolean stable = true;
 		double avg = 0.0;
     	for (FogDevice node : Desa.fogDevices) {
     		if(node.getName().contains("Node-")) {
@@ -527,17 +527,31 @@ public class CloudSim {
 		            if(operator.getName().contains("emergencyApp-")) {
 		            	double utilization = operator.handledMips / operator.getMips()/((int)CloudSim.clock()%Params.monitorInterval);          	
 		            	//Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
-		            	avg += utilization;
-		            	if(utilization > Params.upperThreshold) {
-		            		Desa.RTU = -1;
+		            	if(!operator.getName().contains("monitor")) {
+			            	avg += utilization;
+			            	if(utilization > Params.upperThreshold) {
+			            		stable = false;
+			            	}
 		            	}
 		            	Desa.debug.updateUtilization(operator, utilization);          
 		            }		
 	    		}
     		}
     	}
+    	
     	avg /= Desa.currentInstances;
+    	if(((int)CloudSim.clock())%1000 == 0 && avg <100000)
+    		Desa.avgCPU += avg;
 		Desa.debug.setAvgUtil(avg);
+		
+		//TODO: starting RTU
+		if(clock() > (Params.requestInterval*40)) {
+			if(stable) {
+				//Logger.debug("System", "RTU: " + clock());
+				Desa.RTU = Math.min(Desa.RTU, clock());
+			}
+		}
+		
 		
 		int entities_size = entities.size();
 

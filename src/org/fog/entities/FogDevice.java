@@ -324,7 +324,6 @@ public class FogDevice extends PowerDatacenter {
             AppModule operator = (AppModule) l.get(i);
             if(operator.getName().equals(moduleName.substring(0,moduleName.lastIndexOf("-"))))  {
           
-            
             	operator.monitor(operator.handledMips / operator.getMips()/(Params.monitorInterval));
             	
             	//averageCPUUtilization = operator.handledMips / operator.getMips()/(Params.monitorInterval);

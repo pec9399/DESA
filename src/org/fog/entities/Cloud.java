@@ -156,7 +156,77 @@ public class Cloud extends FogDevice {
 
     }
 
-
+    @Override
+    protected void processOtherEvent(SimEvent ev) {
+        switch (ev.getTag()) {
+            case FogEvents.TUPLE_ARRIVAL:
+                processTupleArrival(ev);
+                break;
+            case FogEvents.LAUNCH_MODULE:
+                processModuleArrival(ev);
+                break;
+            case FogEvents.RELEASE_OPERATOR:
+                processOperatorRelease(ev);
+                break;
+            case FogEvents.SENSOR_JOINED:
+                processSensorJoining(ev);
+                break;
+            case FogEvents.SEND_PERIODIC_TUPLE:
+                sendPeriodicTuple(ev);
+                break;
+            case FogEvents.APP_SUBMIT:
+                processAppSubmit(ev);
+                break;
+            case FogEvents.UPDATE_NORTH_TUPLE_QUEUE:
+                updateNorthTupleQueue();
+                break;
+            case FogEvents.UPDATE_SOUTH_TUPLE_QUEUE:
+                updateSouthTupleQueue();
+                break;
+            case FogEvents.ACTIVE_APP_UPDATE:
+                updateActiveApplications(ev);
+                break;
+            case FogEvents.ACTUATOR_JOINED:
+                processActuatorJoined(ev);
+                break;
+            case FogEvents.LAUNCH_MODULE_INSTANCE:
+                updateModuleInstanceCount(ev);
+                break;
+            case FogEvents.MODULE_SEND:
+                moduleSend(ev);
+                break;
+            case FogEvents.MODULE_RECEIVE:
+                moduleReceive(ev);
+                break;
+            case FogEvents.RELEASE_MODULE:
+                processModuleTermination(ev);
+                break;
+            case FogEvents.RESOURCE_MGMT:
+                manageResources(ev);
+                break;
+            case FogEvents.UPDATE_CLUSTER_TUPLE_QUEUE:
+                updateClusterTupleQueue();
+                break;
+            case FogEvents.START_DYNAMIC_CLUSTERING:
+                //This message is received by the devices to start their clustering
+                processClustering(this.getParentId(), this.getId(), ev);
+                break;
+            case FogEvents.SCALEUP:
+            	distributeConnections();
+            	break;
+            case FogEvents.ANALYZE:
+            	analyze();
+            	break;
+            case FogEvents.PLAN:
+            	plan();
+            	break;
+            case FogEvents.EXECUTE:
+            	execute();
+            	break;
+            default:
+                break;
+        }
+    }
     protected void updateAllocatedMips(String incomingOperator) {
         getHost().getVmScheduler().deallocatePesForAllVms();
         for (final Vm vm : getHost().getVmList()) {
@@ -234,7 +304,7 @@ public class Cloud extends FogDevice {
     	Logger.debug(getName(),"Start Monitor");
     	averageCPUUtilization = 0.0;
     	Desa.RTU = CloudSim.clock();
-    	
+    	double latency = 0.0;
     	for (FogDevice node : Desa.fogDevices) {
     		if(node.getName().contains("Node-")) {
 	    		
@@ -249,9 +319,7 @@ public class Cloud extends FogDevice {
 		            	operator.handledMips = 0.0;
 		            	Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
 		            	averageCPUUtilization += utilization;
-		            	if(utilization > Params.upperThreshold) {
-		            		Desa.RTU = -1;
-		            	}
+		            	latency += node.getUplinkLatency();
 		            	Desa.debug.updateUtilization(operator, utilization);
 		            	operator.utilizationHistory.clear();
 		            	((TupleScheduler)operator.getCloudletScheduler()).cloudletFinishedList.clear();
@@ -262,11 +330,13 @@ public class Cloud extends FogDevice {
     		}
     	}
     	averageCPUUtilization /= Desa.currentInstances;
+   
+    	latency += Desa.currentInstances*100;
+    	
     	Logger.debug(getName(), String.format("Average utilization: %.2f %%", averageCPUUtilization));
-    	Desa.avgCPU += averageCPUUtilization;
     	Desa.monitorCount++;
     	//Debug.progress.setValue((int)(averageCPUUtilization*100));
-    	send(getId(), 0, FogEvents.ANALYZE, null);
+    	send(getId(), latency, FogEvents.ANALYZE, null);
     }
     
     void analyze() {
@@ -326,7 +396,6 @@ public class Cloud extends FogDevice {
 		            	for(int i  = tuples.size()-1; i >=0; i--) {
 		            		if(tuples.get(i).getCloudlet().getClass() == Tuple.class) {
 		            			connections.add(tuples.get(i));
-		            		
 		            		}
 		            	}
 		            	tuples.clear();

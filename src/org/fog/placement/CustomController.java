@@ -1,5 +1,8 @@
 package org.fog.placement;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +19,7 @@ import org.fog.entities.Actuator;
 import org.fog.entities.FogDevice;
 import org.fog.entities.Sensor;
 import org.fog.test.perfeval.Desa;
+import org.fog.test.perfeval.Params;
 import org.fog.utils.Config;
 import org.fog.utils.FogEvents;
 import org.fog.utils.FogUtils;
@@ -28,7 +32,7 @@ public class CustomController extends SimEntity{
 	public static boolean ONLY_CLOUD = false;
 		
 	private List<FogDevice> fogDevices;
-	public List<CustomRequest> sensors;
+	public List<Sensor> sensors;
 	private List<Actuator> actuators;
 	
 	public Map<String, Application> applications;
@@ -36,7 +40,7 @@ public class CustomController extends SimEntity{
 
 	private Map<String, ModulePlacement> appModulePlacementPolicy;
 	
-	public CustomController(String name, List<FogDevice> fogDevices, List<CustomRequest> sensors, List<Actuator> actuators) {
+	public CustomController(String name, List<FogDevice> fogDevices, List<Sensor> sensors, List<Actuator> actuators) {
 		super(name);
 		this.applications = new HashMap<String, Application>();
 		setAppLaunchDelays(new HashMap<String, Integer>());
@@ -103,19 +107,39 @@ public class CustomController extends SimEntity{
 			CloudSim.stopSimulation();
 			//printTimeDetails();
 			//printPowerDetails();
-			printCostDetails();
-			printNetworkUsageDetails();
-			
+			//printCostDetails();
+		    //printNetworkUsageDetails();
+			printDesaResult();
 			System.exit(0);
 			break;
 			
 		}
 	}
 	private void printDesaResult() {
-		System.out.println(String.format("RTU: %f",Desa.RTU));
-		System.out.println(String.format("Avg CPU: %f",Desa.avgCPU/Desa.monitorCount));
-		System.out.println(String.format("Max Intances: %d",Desa.maxInstances));
-		
+		if(Params.external) {
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(Desa.hpa  ? "C:\\Users\\WebEng\\Desktop\\simulation\\"
+					+ "simulation_base.csv" :"C:\\Users\\WebEng\\Desktop\\simulation\\simulation_my.csv", true))) {
+				writer.write(Desa.hpa ?"hpa,":"desa");
+				
+				writer.write(""+Params.jmin+",");
+				writer.write(""+Params.numFogNodes+",");
+			
+				writer.write(""+(Desa.RTU/1000)+",");
+				writer.write(""+Desa.maxInstances+",");
+				writer.write(""+(Desa.avgCPU/(CloudSim.clock()/1000))+",");
+				writer.write("\n");
+			} catch (IOException e) {
+			    e.printStackTrace();
+			    try {
+			        System.in.read();
+			      } catch (IOException e1) {e1.printStackTrace(); }
+			    
+			}
+		} else {
+			System.out.println("RTU: " + Desa.RTU/1000);
+			System.out.println("max(j(t)): " + Desa.maxInstances);
+			System.out.println("avgCPU: " + Desa.avgCPU/(CloudSim.clock()/1000));
+		}
 	}
 	
 	private void printNetworkUsageDetails() {
@@ -265,12 +289,12 @@ public class CustomController extends SimEntity{
 		this.applications = applications;
 	}
 
-	public List<CustomRequest> getSensors() {
+	public List<Sensor> getSensors() {
 		return sensors;
 	}
 
-	public void setSensors(List<CustomRequest> sensors) {
-		for(CustomRequest sensor : sensors)
+	public void setSensors(List<Sensor> sensors) {
+		for(Sensor sensor : sensors)
 			sensor.setControllerId(getId());
 		this.sensors = sensors;
 	}

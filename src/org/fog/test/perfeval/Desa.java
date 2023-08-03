@@ -46,6 +46,7 @@ import org.fog.utils.Logger;
 import org.fog.utils.TimeKeeper;
 import org.fog.utils.distribution.CustomRequest;
 import org.fog.utils.distribution.DeterministicDistribution;
+import org.fog.utils.distribution.NormalDistribution;
 import org.cloudbus.cloudsim.Host;
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.Pe;
@@ -53,7 +54,7 @@ import org.cloudbus.cloudsim.Storage;
 
 public class Desa {
 	public static List<FogDevice> fogDevices = new ArrayList<FogDevice>();
-    static List<CustomRequest> sensors = new ArrayList<CustomRequest>();
+    static List<Sensor> sensors = new ArrayList<Sensor>();
     static List<Actuator> actuators = new ArrayList<Actuator>();
     static LocationHandler locator;
     public static Application emergencyApp;
@@ -66,17 +67,42 @@ public class Desa {
     public static CustomController controller;
     public static ModuleMapping moduleMapping;
     public static int maxInstances = 0;
-    public static double RTU = 0.0;
+    public static double RTU = 999999.0;
     public static double avgCPU = 0.0;
     public static int monitorCount = 0;
     public static File file = new File("C:\\Users\\WebEng\\Desktop\\debug.csv");
-    public static Debug debug = new Debug();
+    public static Debug debug;
     public static int originalInstance = Params.jmin;
     
-	public static boolean hpa = false;
+	public static boolean hpa = true;
     
 	public static void main(String args[]) {
 		try {
+			
+			if(args.length >0) {
+    			Params.external = true;
+    			hpa =  Integer.parseInt(args[0]) != 1;
+    			Params.jmin = Integer.parseInt(args[1]);
+    			Params.numFogNodes = Integer.parseInt(args[2]);
+    			Log.printLine("Starting autoscale simulation... (mode = "+(hpa?"hpa":"desa")+", min = " + args[1] + ", nodes = "+args[2]+")");
+    			File file = new File(hpa? "C:\\Users\\WebEng\\Desktop\\simulation\\simulation_base.csv" :"C:\\Users\\WebEng\\Desktop\\simulation\\simulation_my.csv");
+    			if(!file.exists()) {
+
+        			String[] headers = {"Mode", "Starting Instance", "Number of nodes", "RTU", "max(j(t))", "avgCPU"};
+	    			try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+	    				for(int i =0; i <headers.length;i++) {
+	    					writer.write(headers[i] +",");
+	    				}
+	    				writer.write("\n");
+	    			} catch (IOException e) {
+	    			    e.printStackTrace();
+	    			   // return;
+	    			}
+    			}
+			} else {
+				debug = new Debug();
+			}
+			
 			Log.disable(); 
 			Logger.ENABLED = true;
 		    int num_user = 1; 
@@ -118,7 +144,8 @@ public class Desa {
     		CustomRequest monitor = new CustomRequest("monitor","monitor",broker1.getId(),"autoscaler",new DeterministicDistribution(Params.monitorInterval));
     		monitor.setGatewayDeviceId(cloud.getId());
     		sensors.add(monitor);
-    
+    		
+    		//Sensor requests = new Sensor("request","request",broker1.getId(),"registry",new NormalDistribution(Params.requestInterval, Params.requestInterval/2));
     		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(Params.requestInterval));
     		requests.setGatewayDeviceId(cloud.getId());
     		sensors.add(requests);
@@ -293,10 +320,10 @@ public class Desa {
     	Application application = Application.createApplication(appId, userId);
   		ArrayList<String> modules = new ArrayList<String>();
   		
-  		application.addAppModule("emergencyApp", 1000,1000,10);
+  		application.addAppModule("emergencyApp", Params.podMips,Params.podRam,Params.podSize);
  
   		
-  		application.addAppEdge("connection", "emergencyApp", Params.requestCPULength, Params.requestNetworkLength, "connection", Tuple.UP, AppEdge.SENSOR);
+  		application.addAppEdge("connection", "emergencyApp", Params. requestCPULength, Params.requestNetworkLength, "connection", Tuple.UP, AppEdge.SENSOR);
   		
   		final AppLoop loop1 = new AppLoop(modules);
   		List<AppLoop> loops = new ArrayList<AppLoop>(){{add(loop1);}};
