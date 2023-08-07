@@ -67,14 +67,14 @@ public class Desa {
     public static CustomController controller;
     public static ModuleMapping moduleMapping;
     public static int maxInstances = 0;
-    public static double RTU = 999999.0;
+    public static double RTU = -1;
     public static double avgCPU = 0.0;
     public static int monitorCount = 0;
     public static File file = new File("C:\\Users\\WebEng\\Desktop\\debug.csv");
     public static Debug debug;
     public static int originalInstance = Params.jmin;
     
-	public static boolean hpa = true;
+	public static boolean hpa = Params.hpa;
     
 	public static void main(String args[]) {
 		try {

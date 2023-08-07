@@ -84,7 +84,7 @@ public class CustomController extends SimEntity{
 
 		send(getId(), Config.RESOURCE_MANAGE_INTERVAL, FogEvents.CONTROLLER_RESOURCE_MANAGE);
 		
-		send(getId(), Config.MAX_SIMULATION_TIME, FogEvents.STOP_SIMULATION);
+		//send(getId(), Config.MAX_SIMULATION_TIME, FogEvents.STOP_SIMULATION);
 		
 		for(FogDevice dev : getFogDevices())
 			sendNow(dev.getId(), FogEvents.RESOURCE_MGMT);
@@ -115,7 +115,7 @@ public class CustomController extends SimEntity{
 			
 		}
 	}
-	private void printDesaResult() {
+	public void printDesaResult() {
 		if(Params.external) {
 			try (BufferedWriter writer = new BufferedWriter(new FileWriter(Desa.hpa  ? "C:\\Users\\WebEng\\Desktop\\simulation\\"
 					+ "simulation_base.csv" :"C:\\Users\\WebEng\\Desktop\\simulation\\simulation_my.csv", true))) {

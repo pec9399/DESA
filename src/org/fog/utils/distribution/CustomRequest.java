@@ -12,6 +12,7 @@ import org.fog.application.AppEdge;
 import org.fog.entities.Sensor;
 import org.fog.entities.Tuple;
 import org.fog.mobilitydata.References;
+import org.fog.test.perfeval.Desa;
 import org.fog.test.perfeval.Params;
 import org.fog.utils.Config;
 import org.fog.utils.FogEvents;
@@ -80,7 +81,9 @@ public class CustomRequest extends Sensor{
 	public void transmit(int numRequest){
 			if(numRequest <= 0) {
 				Logger.debug("system", "Request end, stop simulation");
-				send(getId(), 0, FogEvents.STOP_SIMULATION);
+				CloudSim.stopSimulation();
+				Desa.controller.printDesaResult();
+				System.exit(0);
 			}
 			AppEdge _edge = null;
 			for(AppEdge edge : getApp().getEdges()){

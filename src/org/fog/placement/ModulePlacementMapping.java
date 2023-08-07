@@ -48,6 +48,7 @@ public class ModulePlacementMapping extends ModulePlacement{
 
 	public void updateModules(int n) {
 		//handle unmapped modules
+			Desa.RTU = -1;
 				Desa.maxInstances = (int)Math.max(Desa.maxInstances, n);
 				List<AppModule> modules = getApplication().getModules();
 				int s = modules.size();

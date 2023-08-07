@@ -303,7 +303,6 @@ public class Cloud extends FogDevice {
     void monitor() {
     	Logger.debug(getName(),"Start Monitor");
     	averageCPUUtilization = 0.0;
-    	Desa.RTU = CloudSim.clock();
     	double latency = 0.0;
     	for (FogDevice node : Desa.fogDevices) {
     		if(node.getName().contains("Node-")) {
@@ -319,7 +318,7 @@ public class Cloud extends FogDevice {
 		            	operator.handledMips = 0.0;
 		            	Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
 		            	averageCPUUtilization += utilization;
-		            	latency += node.getUplinkLatency();
+		   
 		            	Desa.debug.updateUtilization(operator, utilization);
 		            	operator.utilizationHistory.clear();
 		            	((TupleScheduler)operator.getCloudletScheduler()).cloudletFinishedList.clear();
@@ -331,7 +330,7 @@ public class Cloud extends FogDevice {
     	}
     	averageCPUUtilization /= Desa.currentInstances;
    
-    	latency += Desa.currentInstances*100;
+    	latency +=0;
     	
     	Logger.debug(getName(), String.format("Average utilization: %.2f %%", averageCPUUtilization));
     	Desa.monitorCount++;
@@ -363,7 +362,7 @@ public class Cloud extends FogDevice {
     	
     	Logger.debug(getName(),"Start Execute");
     	
- 
+    	Desa.RTU = -1;
 		Desa.currentInstances = desiredReplicas;
 		Desa.maxInstances = Math.max(Desa.currentInstances, Desa.maxInstances);
 		Desa.controller.submitApplication(Desa.emergencyApp, new ModulePlacementMapping(Desa.fogDevices,Desa.emergencyApp, Desa.moduleMapping));

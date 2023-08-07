@@ -529,7 +529,7 @@ public class CloudSim {
 		            	//Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
 		            	if(!operator.getName().contains("monitor")) {
 			            	avg += utilization;
-			            	if(utilization > Params.upperThreshold) {
+			            	if(utilization > (Params.upperThreshold*100)) {
 			            		stable = false;
 			            	}
 		            	}
@@ -545,10 +545,10 @@ public class CloudSim {
 		Desa.debug.setAvgUtil(avg);
 		
 		//TODO: starting RTU
-		if(clock() > (Params.requestInterval*40)) {
-			if(stable) {
-				//Logger.debug("System", "RTU: " + clock());
-				Desa.RTU = Math.min(Desa.RTU, clock());
+		if(clock() > (Params.requestInterval*40) && avg > 0.0) {
+			if(stable && Desa.RTU < 0) {
+				Logger.debug("System", "RTU: " + clock());
+				Desa.RTU = clock();
 			}
 		}
 		
