@@ -8,6 +8,8 @@
 
 package org.cloudbus.cloudsim.core;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -24,6 +26,7 @@ import org.cloudbus.cloudsim.core.predicates.PredicateAny;
 import org.cloudbus.cloudsim.core.predicates.PredicateNone;
 import org.fog.application.AppModule;
 import org.fog.entities.FogDevice;
+import org.fog.scheduler.TupleScheduler;
 import org.fog.test.perfeval.Desa;
 import org.fog.test.perfeval.Params;
 import org.fog.utils.Logger;
@@ -71,6 +74,8 @@ public class CloudSim {
 	/** The minimal time between events. Events within shorter periods after the last event are discarded. */
 	private static double minTimeBetweenEvents = 0.1;
 	
+	private static BufferedWriter writer;
+	public static double prevAvg = 0.0;
 	/**
 	 * Initialises all the common attributes.
 	 * 
@@ -82,6 +87,9 @@ public class CloudSim {
 	 * @pre $none
 	 * @post $none
 	 */
+	
+	private static double prevTime = -1;
+	public static double lastResetTime = 0;
 	private static void initCommonVariable(Calendar _calendar, boolean _traceFlag, int numUser)
 			throws Exception {
 		initialize();
@@ -125,7 +133,11 @@ public class CloudSim {
 	public static void init(int numUser, Calendar cal, boolean traceFlag) {
 		try {
 			initCommonVariable(cal, traceFlag, numUser);
-
+			/*try {
+				if(Params.external) writer = new BufferedWriter(new FileWriter(Desa.file,true));
+			} catch(Exception e) {
+				e.printStackTrace();
+			}*/
 			// create a GIS object
 			cis = new CloudInformationService("CloudInformationService");
 
@@ -525,11 +537,11 @@ public class CloudSim {
     			for (Vm vm : node.getVmList()) {
 				   AppModule operator = (AppModule) vm;
 		            if(operator.getName().contains("emergencyApp-")) {
-		            	double utilization = operator.handledMips / operator.getMips()/((int)CloudSim.clock()%Params.monitorInterval);          	
+		            	double utilization = operator.handledMips / operator.getMips()/((int)CloudSim.clock()-(int)lastResetTime);          	
 		            	//Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
 		            	if(!operator.getName().contains("monitor")) {
 			            	avg += utilization;
-			            	if(utilization > (Params.upperThreshold*100)) {
+			            	if(utilization > (Params.upperThreshold*100) + 5) {
 			            		stable = false;
 			            	}
 		            	}
@@ -540,17 +552,66 @@ public class CloudSim {
     	}
     	
     	avg /= Desa.currentInstances;
-    	if(((int)CloudSim.clock())%1000 == 0 && avg <100000)
-    		Desa.avgCPU += avg;
-		Desa.debug.setAvgUtil(avg);
+    	
+    	if(((int)CloudSim.clock())%1000 == 0 && avg <100000 && clock() > Params.burstTime && clock() < Params.burstTime+Params.burstDuration) {
+    		Desa.avgCPUcnt++;
+    		Desa.avgCPUDuringBurst += avg;
+    		Desa.debug.setAvgUtilDuringBurst();
+    	}
+
+    	if(avg < 1000000) {
+			Desa.debug.setAvgUtil(avg);
+			prevAvg = avg;
+			
+			if(CloudSim.clock() < Params.burstTime + Params.burstDuration) {
+				Desa.finalUtilization = avg;
+			}
+    	}
+		
+		
+    	if(CloudSim.clock() > Params.burstTime && ((int)CloudSim.clock()-(int)lastResetTime) > 1000){
+	    	if(Desa.RTU < 0 && (avg < Params.upperThreshold*100)){
+	    	
+				Desa.RTU = (CloudSim.clock() - Params.burstTime)/1000;
+			
+				Desa.debug.setRTU();
+			} else if(Desa.RTU > -1 && avg > Params.upperThreshold*100 + 5) {
+				if(Desa.RTU != -1) {
+					Desa.lastRTU = Desa.RTU;
+					Desa.RTU =-1;
+				}
+				Desa.debug.setRTU();
+			}
+    	}
+		
+		
+		
+		/*if(CloudSim.clock()!=prevTime) {
+			
+			String mode = Desa.hpa? "HPA" : "DESA";
+			String s = stable ? "Stable" : ""; 
+			try {
+				writer.write(mode+ "," + CloudSim.clock() + "," + Desa.currentInstances +","+avg + "," + s);
+			
+				writer.write("\n");
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+			prevTime = CloudSim.clock();
+			
+		}*/
+		
+		
+		
 		
 		//TODO: starting RTU
-		if(clock() > (Params.requestInterval*40) && avg > 0.0) {
-			if(stable && Desa.RTU < 0) {
-				Logger.debug("System", "RTU: " + clock());
-				Desa.RTU = clock();
-			}
-		}
+		/*if(clock() > (Params.burstTime+10000) && avg > 0.0) {
+			if(stable && Desa.RTU < 0 && (avg < Params.upperThreshold*100) && (avg > 10)) {
+				Logger.debug("System", "RTU: " + (clock()-Params.burstTime)/1000);
+				Desa.RTU = (clock()-Params.burstTime)/1000;
+				Desa.debug.setRTU();
+			} 
+		}*/
 		
 		
 		int entities_size = entities.size();

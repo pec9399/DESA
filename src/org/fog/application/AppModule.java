@@ -10,6 +10,7 @@ import org.cloudbus.cloudsim.CloudletScheduler;
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
+import org.cloudbus.cloudsim.core.SimEvent;
 import org.cloudbus.cloudsim.power.PowerVm;
 import org.fog.application.selectivity.SelectivityModel;
 import org.fog.entities.FogDevice;
@@ -51,6 +52,7 @@ public class AppModule extends PowerVm{
 	public FogDevice node = null;
     private double averageCPUUtilization = 0.0;
     private int desiredReplicas = 0;
+    private int childNum = 0;
     
 	public AppModule(
 			int id,
@@ -144,21 +146,30 @@ public class AppModule extends PowerVm{
 	public void setNumInstances(int numInstances) {
 		this.numInstances = numInstances;
 	}
-	   //DESA's MAPE
-    public boolean  monitor(double utilization) {
+	
+	
+	//DESA's MAPE
+    public void monitor(double utilization) {
     	
          averageCPUUtilization = utilization;
          handledMips = 0.0;
+         CloudSim.lastResetTime = CloudSim.clock();
          Logger.debug(getName(), String.format("%.2f%%",averageCPUUtilization));
-           
-    	return analyze();
+         send(node.getId(),Params.numFogNodes+ Desa.currentInstances*3,FogEvents.ANALYZE, this);
+
     }
     public boolean analyze() {
-		    //	Logger.debug(getName(),"Start Analyze");
-		    	if(averageCPUUtilization > Params.upperThreshold) {
-		    		desiredReplicas = (int)Math.ceil((averageCPUUtilization/(Params.upperThreshold*100)));
+		    	//Logger.debug(getName(),"Start Analyze");
+
+		    		if(childNum == 0) {
+		    			desiredReplicas = (int)Math.ceil((averageCPUUtilization/(Params.upperThreshold*100)));
+		    			childNum+= desiredReplicas;
+		    		} else {
+		    			desiredReplicas = (int)Math.floor((averageCPUUtilization/(Params.upperThreshold*100)));
+		    		}
 		    		
-		    	}
+		
+		    	
 		    	if(desiredReplicas > 1)
 		    		return plan();
 		    
@@ -171,16 +182,20 @@ public class AppModule extends PowerVm{
 		    }
 		    
     public  boolean execute() {
+    			
 		    	Logger.debug(getName(),"Scale " + (desiredReplicas-1) + " instances");
 		    	Desa.currentInstances += desiredReplicas-1;
 				Desa.maxInstances = Math.max(Desa.currentInstances, Desa.maxInstances);
-				Desa.controller.submitApplication(Desa.emergencyApp,10, new ModulePlacementMapping(Desa.fogDevices,Desa.emergencyApp, Desa.moduleMapping));
+				Desa.controller.submitApplication(Desa.emergencyApp,(int)node.getUplinkLatency(), new ModulePlacementMapping(Desa.fogDevices,Desa.emergencyApp, Desa.moduleMapping));
 				
 				Desa.debug.setInstance(Desa.currentInstances);
-
+				node.send(Desa.cloud.getId(),5,FogEvents.SCALEUP);
+				
 				for(String appId : Desa.controller.applications.keySet()){
 					if(appId.equals("emergencyApp")) {
-						Desa.controller.processAppSubmit(Desa.controller.applications.get(appId));
+						//send(getId(), (int)node.getUplinkLatency(), FogEvents.APP_SUBMIT, Desa.controller.applications.get(appId));
+						Desa.controller.processAppSubmit((int)node.getUplinkLatency()+Params.numFogNodes, Desa.controller.applications.get(appId));
+						return true;
 					}
 				}
 				return true;

@@ -21,7 +21,7 @@ import org.fog.utils.Logger;
 
 public class CustomRequest extends Sensor{
 	private Queue<Integer> requestQueue;
-	
+	public static int numUsers = 10;
 	/**
 	 * This constructor is called from the code that generates PhysicalTopology from JSON
 	 * @param name
@@ -39,14 +39,14 @@ public class CustomRequest extends Sensor{
 	@Override
 	public void startEntity() {
 		send(gatewayDeviceId, CloudSim.getMinTimeBetweenEvents(), FogEvents.SENSOR_JOINED, geoLocation);
-		if(appId.equals("registry")) {
+		if(appId.equals("registry") & Params.fromFile) {
 			try {
 				//read dataset file to generate user requests
 				File requests = new File(References.dataset_request);
 				Scanner scanner = new Scanner(requests);
 				while(scanner.hasNextLine()) {
 					String line = scanner.nextLine();
-					requestQueue.add(Integer.parseInt(line)/100);
+					requestQueue.add(Integer.parseInt(line)/100); //merge requests by 100 to reduce # of objects created
 				}
 				scanner.close();
 			} catch(Exception e) {
@@ -72,6 +72,8 @@ public class CustomRequest extends Sensor{
 			else if(!appId.equals("registry")){
 				
 				transmit(1);
+			}else if(appId.equals("registry") && !Params.fromFile) {
+				transmit(numUsers);
 			}
 			send(getId(), getTransmitDistribution().getNextValue(), FogEvents.EMIT_TUPLE);
 			break;

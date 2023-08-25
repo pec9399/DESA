@@ -19,6 +19,7 @@ import org.fog.mobilitydata.Clustering;
 import org.fog.placement.ModulePlacementMapping;
 import org.fog.policy.AppModuleAllocationPolicy;
 import org.fog.scheduler.StreamOperatorScheduler;
+import org.fog.scheduler.TupleScheduler;
 import org.fog.test.perfeval.Desa;
 import org.fog.test.perfeval.Params;
 import org.fog.utils.*;
@@ -309,13 +310,18 @@ public class FogDevice extends PowerDatacenter {
             case FogEvents.SCALEUP:
             	distributeConnections();
             	break;
+            case FogEvents.ANALYZE:
+            	((AppModule)(ev.getData())).analyze();
+            	break;
             default:
                 break;
         }
     }
     //DESA's MAPE
     void monitor(String moduleName) {
-    	//Logger.debug(getName(),"Start Monitor");
+    	
+    
+    	
     	if(Integer.parseInt(moduleName.substring(moduleName.indexOf("-")+1,moduleName.lastIndexOf("-"))) > originalInstance)
     		return;
     	List<Vm> l= getHost().getVmList();
@@ -325,30 +331,30 @@ public class FogDevice extends PowerDatacenter {
             if(operator.getName().equals(moduleName.substring(0,moduleName.lastIndexOf("-"))))  {
           
             	operator.monitor(operator.handledMips / operator.getMips()/(Params.monitorInterval));
-            	
-            	//averageCPUUtilization = operator.handledMips / operator.getMips()/(Params.monitorInterval);
-            	//operator.handledMips = 0.0;
-            	//Logger.debug(operator.getName(), String.format("%.2f%%",averageCPUUtilization));
+            	operator.handledMips = 0;
+            	CloudSim.lastResetTime= CloudSim.clock();
             }
     	}
-    	//send(getId(), 0, FogEvents.ANALYZE, null);
+    	
+    	
+    	
+    	
     }
     
   
-    
     protected void distributeConnections(){
+    	//Logger.debug(getName(),"Distribute connections");
     	List<ResCloudlet> connections = new ArrayList<ResCloudlet>();
 		for (FogDevice node : Desa.fogDevices) {
     		if(node.getName().contains("Node-")) {
 	    		
     			for (Vm vm : node.getVmList()) {
 				   AppModule operator = (AppModule) vm;
-		            if(operator.getName().contains("emergencyApp-")) {
+		            if(operator.getName().contains("emergencyApp-") && !operator.getName().contains("monitor")) {
 		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
 		            	for(int i  = tuples.size()-1; i >=0; i--) {
 		            		if(tuples.get(i).getCloudlet().getClass() == Tuple.class) {
 		            			connections.add(tuples.get(i));
-		            		
 		            		}
 		            	}
 		            	tuples.clear();
@@ -363,7 +369,7 @@ public class FogDevice extends PowerDatacenter {
 	    		
     			for (Vm vm : node.getVmList()) {
 				   AppModule operator = (AppModule) vm;
-		            if(operator.getName().contains("emergencyApp-")) {
+		            if(operator.getName().contains("emergencyApp-")&& !operator.getName().contains("monitor")) {
 		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
 		            	for(int i = 0; i < n; i++) {
 		            		Tuple t = (Tuple)connections.get(0).getCloudlet();
@@ -378,19 +384,18 @@ public class FogDevice extends PowerDatacenter {
     	}
 		
 
-		for (FogDevice node : Desa.fogDevices) {
-    		if(node.getName().contains("Node-")) {
-	    		
-    			for (Vm vm : node.getVmList()) {
-				   AppModule operator = (AppModule) vm;
-		            if(operator.getName().contains("emergencyApp-")) {
-		            	List<ResCloudlet> tuples = ((CloudletSchedulerTimeShared) operator.getCloudletScheduler()).getCloudletExecList();
-		            	System.out.println(tuples.size());
-		    
-		            }		
-	    		}
-    		}
-    	}
+		/*
+		 * for (FogDevice node : Desa.fogDevices) { if(node.getName().contains("Node-"))
+		 * {
+		 * 
+		 * for (Vm vm : node.getVmList()) { AppModule operator = (AppModule) vm;
+		 * if(operator.getName().contains("emergencyApp-")) { List<ResCloudlet> tuples =
+		 * ((CloudletSchedulerTimeShared)
+		 * operator.getCloudletScheduler()).getCloudletExecList();
+		 * System.out.println(tuples.size());
+		 * 
+		 * } } } }
+		 */
     	
     }
     
@@ -797,6 +802,7 @@ public class FogDevice extends PowerDatacenter {
         
         if(tuple.getDestModuleName().contains("monitor")) {
         	originalInstance = Desa.originalInstance;
+        	
         	monitor(tuple.getDestModuleName());
         }
 

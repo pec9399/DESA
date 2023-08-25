@@ -25,7 +25,7 @@ public class UtilizationModelFull implements UtilizationModel {
 	 */
 	@Override
 	public double getUtilization(double time) {
-		return Params.requestUtilization;
+		return 1.0;
 	}
 
 }

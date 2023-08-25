@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.power.PowerHost;
@@ -69,12 +70,15 @@ public class Desa {
     public static int maxInstances = 0;
     public static double RTU = -1;
     public static double avgCPU = 0.0;
+    public static double avgCPUDuringBurst = 0.0;
+    public static int avgCPUcnt = 0;
     public static int monitorCount = 0;
-    public static File file = new File("C:\\Users\\WebEng\\Desktop\\debug.csv");
+    public static File file, file2;
     public static Debug debug;
     public static int originalInstance = Params.jmin;
-    
+    public static double lastRTU = -1;
 	public static boolean hpa = Params.hpa;
+	public static double finalUtilization = -1;
     
 	public static void main(String args[]) {
 		try {
@@ -82,26 +86,19 @@ public class Desa {
 			if(args.length >0) {
     			Params.external = true;
     			hpa =  Integer.parseInt(args[0]) != 1;
-    			Params.jmin = Integer.parseInt(args[1]);
-    			Params.numFogNodes = Integer.parseInt(args[2]);
-    			Log.printLine("Starting autoscale simulation... (mode = "+(hpa?"hpa":"desa")+", min = " + args[1] + ", nodes = "+args[2]+")");
-    			File file = new File(hpa? "C:\\Users\\WebEng\\Desktop\\simulation\\simulation_base.csv" :"C:\\Users\\WebEng\\Desktop\\simulation\\simulation_my.csv");
-    			if(!file.exists()) {
-
-        			String[] headers = {"Mode", "Starting Instance", "Number of nodes", "RTU", "max(j(t))", "avgCPU"};
-	    			try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-	    				for(int i =0; i <headers.length;i++) {
-	    					writer.write(headers[i] +",");
-	    				}
-	    				writer.write("\n");
-	    			} catch (IOException e) {
-	    			    e.printStackTrace();
-	    			   // return;
-	    			}
-    			}
+    			Params.numFogNodes = Integer.parseInt(args[1]);
+    			Params.seed = Integer.parseInt(args[2]);
+    			String s = hpa ? "hpa" : "desa";
+    			file = new File("C:\\Users\\WebEng\\Desktop\\data\\" + s+Params.seed+".csv");
+    			file2 = new File("C:\\Users\\WebEng\\Desktop\\data\\" + s+".csv");
+    			Params.requestCPULength = Params.numFogNodes*200;
+    			Params.requestNetworkLength = Params.numFogNodes*200;
+    			Params.burstTime = (int)(new Random(Params.seed).nextInt(60*1000, 5*60*1000));
 			} else {
-				debug = new Debug();
+				//String s = hpa ? "hpa" : "desa";
+				//file = new File("C:\\Users\\WebEng\\Desktop\\data\\" + s+Params.numFogNodes+".csv");
 			}
+			debug = new Debug();
 			
 			Log.disable(); 
 			Logger.ENABLED = true;
@@ -118,12 +115,10 @@ public class Desa {
     		
     		//fogs
 
-    		double latency = 150.0;
     		for(int i = 1; i <= Params.numFogNodes; i++) {
     			FogDevice node = createFogDevice("Node-"+i, 10000, 40000,10000, 10000, 10000, 1, 0.0, 103, 83.25);
     			node.setParentId(cloud.getId());
-    			node.setUplinkLatency(latency % 1000); //latency of connection between node and cloud
-    			latency+=150.0;
+    			node.setUplinkLatency((int)(Math.random()* 1000+1)); //latency of connection between node and cloud
     			fogDevices.add(node);
     			
     		}
@@ -145,8 +140,11 @@ public class Desa {
     		monitor.setGatewayDeviceId(cloud.getId());
     		sensors.add(monitor);
     		
+    		
     		//Sensor requests = new Sensor("request","request",broker1.getId(),"registry",new NormalDistribution(Params.requestInterval, Params.requestInterval/2));
     		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(Params.requestInterval));
+
+    		
     		requests.setGatewayDeviceId(cloud.getId());
     		sensors.add(requests);
     

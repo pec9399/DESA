@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.SimEntity;
 import org.cloudbus.cloudsim.core.SimEvent;
@@ -23,6 +24,7 @@ import org.fog.test.perfeval.Params;
 import org.fog.utils.Config;
 import org.fog.utils.FogEvents;
 import org.fog.utils.FogUtils;
+import org.fog.utils.Logger;
 import org.fog.utils.NetworkUsageMonitor;
 import org.fog.utils.TimeKeeper;
 import org.fog.utils.distribution.CustomRequest;
@@ -39,6 +41,7 @@ public class CustomController extends SimEntity{
 	public Map<String, Integer> appLaunchDelays;
 
 	private Map<String, ModulePlacement> appModulePlacementPolicy;
+
 	
 	public CustomController(String name, List<FogDevice> fogDevices, List<Sensor> sensors, List<Actuator> actuators) {
 		super(name);
@@ -83,7 +86,9 @@ public class CustomController extends SimEntity{
 		}
 
 		send(getId(), Config.RESOURCE_MANAGE_INTERVAL, FogEvents.CONTROLLER_RESOURCE_MANAGE);
-		
+		send(getId(),Params.burstTime,FogEvents.BURST);
+		send(getId(),Params.burstTime+Params.burstDuration,FogEvents.BURSTEND);
+		send(getId(),Params.burstTime+Params.burstDuration+1000,FogEvents.STOP_SIMULATION);
 		//send(getId(), Config.MAX_SIMULATION_TIME, FogEvents.STOP_SIMULATION);
 		
 		for(FogDevice dev : getFogDevices())
@@ -103,6 +108,12 @@ public class CustomController extends SimEntity{
 		case FogEvents.CONTROLLER_RESOURCE_MANAGE:
 			manageResources();
 			break;
+		case FogEvents.BURST:
+			burst();
+			break;
+		case FogEvents.BURSTEND:
+			burstEnd();
+			break;
 		case FogEvents.STOP_SIMULATION:
 			CloudSim.stopSimulation();
 			//printTimeDetails();
@@ -112,35 +123,80 @@ public class CustomController extends SimEntity{
 			printDesaResult();
 			System.exit(0);
 			break;
-			
+		case FogEvents.SCALEUP:
+			processAppSubmit((Application)(ev.getData()));
+			break;
 		}
 	}
+	
+	public void burst() {
+		Logger.debug("system", "burst start");
+		CustomRequest.numUsers = 1000;
+	}
+	
+	public void burstEnd() {
+		Logger.debug("system", "burst end");
+		
+		
+		
+		CustomRequest.numUsers = 10;
+	}
+	
 	public void printDesaResult() {
 		if(Params.external) {
-			try (BufferedWriter writer = new BufferedWriter(new FileWriter(Desa.hpa  ? "C:\\Users\\WebEng\\Desktop\\simulation\\"
-					+ "simulation_base.csv" :"C:\\Users\\WebEng\\Desktop\\simulation\\simulation_my.csv", true))) {
-				writer.write(Desa.hpa ?"hpa,":"desa");
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(Desa.file,true))) {
+				writer.write(Desa.hpa ?"hpa,":"desa,");
 				
 				writer.write(""+Params.jmin+",");
 				writer.write(""+Params.numFogNodes+",");
 			
-				writer.write(""+(Desa.RTU/1000)+",");
+				writer.write(""+(Desa.RTU == -1? Desa.lastRTU : Desa.RTU)+",");
 				writer.write(""+Desa.maxInstances+",");
-				writer.write(""+(Desa.avgCPU/(CloudSim.clock()/1000))+",");
+				writer.write(""+Desa.avgCPUDuringBurst/Desa.avgCPUcnt+",");
+				writer.write(""+Desa.finalUtilization+",");
+				writer.write(""+Params.seed+",");
 				writer.write("\n");
 			} catch (IOException e) {
 			    e.printStackTrace();
-			    try {
-			        System.in.read();
-			      } catch (IOException e1) {e1.printStackTrace(); }
+			    
 			    
 			}
+			
+			printMergedResult();
+			
 		} else {
-			System.out.println("RTU: " + Desa.RTU/1000);
+			System.out.println("RTU: " + Desa.RTU);
 			System.out.println("max(j(t)): " + Desa.maxInstances);
-			System.out.println("avgCPU: " + Desa.avgCPU/(CloudSim.clock()/1000));
+			System.out.println("avgCPU: " + Desa.avgCPUDuringBurst/Desa.avgCPUcnt/1000);
 		}
 	}
+	
+	public void printMergedResult() {
+
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter(Desa.file2,true))) {
+			writer.write(Desa.hpa ?"hpa,":"desa,");
+			
+			writer.write(""+Params.jmin+",");
+			writer.write(""+Params.numFogNodes+",");
+			writer.write(""+(Desa.RTU == -1? Desa.lastRTU : Desa.RTU)+",");
+			writer.write(""+Desa.maxInstances+",");
+			writer.write(""+Desa.avgCPUDuringBurst/Desa.avgCPUcnt+",");
+			writer.write(""+Desa.finalUtilization+",");
+			writer.write(""+Params.seed+",");
+			writer.write("\n");
+		} catch (IOException e) {
+		    e.printStackTrace();
+		    try {
+				wait(1000);
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		    printMergedResult();
+		    
+		}
+	}
+	
 	
 	private void printNetworkUsageDetails() {
 		System.out.println("Total network usage = "+NetworkUsageMonitor.getNetworkUsage()/Config.MAX_SIMULATION_TIME);		
@@ -242,32 +298,58 @@ public class CustomController extends SimEntity{
 		processAppSubmit(app);
 	}
 	
+	int del = 0;
 	public void processAppSubmit(Application application){
-		System.out.println(CloudSim.clock()+" Submitted application "+ application.getAppId());
+		Logger.debug(getName(),CloudSim.clock()+" Submitted application "+ application.getAppId());
 		FogUtils.appIdToGeoCoverageMap.put(application.getAppId(), application.getGeoCoverage());
 		getApplications().put(application.getAppId(), application);
 		
 		ModulePlacement modulePlacement = getAppModulePlacementPolicy().get(application.getAppId());
 	
-		for(FogDevice fogDevice : fogDevices){
-			send(fogDevice.getId(),10, FogEvents.ACTIVE_APP_UPDATE, application);
-		}
+		//for(FogDevice fogDevice : fogDevices){
+			//send(fogDevice.getId(),0, FogEvents.ACTIVE_APP_UPDATE, application);
+		//}
 		
 		Map<Integer, List<AppModule>> deviceToModuleMap = modulePlacement.getDeviceToModuleMap();
 		//int cnt = 0;
 		for(Integer deviceId : deviceToModuleMap.keySet()){
 			for(AppModule module : deviceToModuleMap.get(deviceId)){
-				send(deviceId, 10,FogEvents.APP_SUBMIT, application);
-				send(deviceId, 10,FogEvents.LAUNCH_MODULE, module);
+				send(deviceId, 0,FogEvents.APP_SUBMIT, application);
+				send(deviceId, 0,FogEvents.LAUNCH_MODULE, module);
 				//cnt++;
 			}
 		}
+		del++;
+		//System.out.println(cnt);
+	}
+	
+	public void processAppSubmit(double latency, Application application){
+		Logger.debug(getName(),(CloudSim.clock()+latency)+" Submitted application "+ application.getAppId());
+		FogUtils.appIdToGeoCoverageMap.put(application.getAppId(), application.getGeoCoverage());
+		getApplications().put(application.getAppId(), application);
+		
+		ModulePlacement modulePlacement = getAppModulePlacementPolicy().get(application.getAppId());
+	
+		//for(FogDevice fogDevice : fogDevices){
+			//send(fogDevice.getId(),0, FogEvents.ACTIVE_APP_UPDATE, application);
+		//}
+		
+		Map<Integer, List<AppModule>> deviceToModuleMap = modulePlacement.getDeviceToModuleMap();
+		//int cnt = 0;
+		for(Integer deviceId : deviceToModuleMap.keySet()){
+			for(AppModule module : deviceToModuleMap.get(deviceId)){
+				send(deviceId, latency,FogEvents.APP_SUBMIT, application);
+				send(deviceId, latency,FogEvents.LAUNCH_MODULE, module);
+				//cnt++;
+			}
+		}
+		del++;
 		//System.out.println(cnt);
 	}
 
 	public List<FogDevice> getFogDevices() {
 		return fogDevices;
-	}
+	} 
 
 	public void setFogDevices(List<FogDevice> fogDevices) {
 		this.fogDevices = fogDevices;

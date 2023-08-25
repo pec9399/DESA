@@ -3,6 +3,7 @@ package org.fog.utils;
 import java.text.DecimalFormat;
 
 import org.cloudbus.cloudsim.core.CloudSim;
+import org.fog.test.perfeval.Params;
 
 public class Logger {
 	
@@ -20,6 +21,8 @@ public class Logger {
 	
 	public static void debug(String name, String message){
 		if(!ENABLED)
+			return;
+		if(Params.external)
 			return;
 		if(Logger.LOG_LEVEL <= Logger.DEBUG)
 			System.out.println(df.format(CloudSim.clock())+" : "+name+" : "+message);

@@ -50,5 +50,7 @@ public class FogEvents {
     public static final int PLAN = BASE+41;
     public static final int EXECUTE = BASE+42;
     public static final int SCALEUP = BASE+43;
+    public static final int BURST = BASE+44;
+    public static final int BURSTEND = BASE+45;
 
 }

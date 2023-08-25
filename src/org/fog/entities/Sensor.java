@@ -26,6 +26,7 @@ public class Sensor extends SimEntity{
 	protected int controllerId;
 	protected Application app;
 	protected double latency;
+	public int numUsers = 10;
 
 	protected int transmissionStartDelay = Config.TRANSMISSION_START_DELAY;
 	

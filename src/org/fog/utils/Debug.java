@@ -24,6 +24,7 @@ import javax.swing.event.ChangeListener;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.fog.application.AppModule;
 import org.fog.entities.FogDevice;
+import org.fog.test.perfeval.Desa;
 import org.fog.test.perfeval.Params;
  
 
@@ -33,7 +34,7 @@ public class Debug extends JFrame{
 		HashMap<String, JProgressBar> moduleToUtilMap = new HashMap<String, JProgressBar>();
 		Font deviceNameFont = new Font("Raleway", Font.BOLD, 15);
 		Font moduleNameFont = new Font("Raleway", Font.PLAIN, 12);
-		JLabel time, avg, instance;
+		JLabel time, avg, instance, rtu, avgDB;
 		JPanel timer, util;
 		JFrame stat;
 		
@@ -41,11 +42,11 @@ public class Debug extends JFrame{
 			stat = new JFrame();
 			stat.setSize(500,300);
 			stat.setResizable(true);
-			stat.setVisible(true);
+			stat.setVisible(!Params.external);
 			stat.setTitle("Statistics");
 			stat.setLayout(new FlowLayout());
 			
-	        setSize(1920, 1080); //크기 설정
+	        setSize(500, 500); //크기 설정
 	        setResizable(true);
 	        //GridLayout gridLayout = new GridLayout(Params.numFogNodes/2, Params.numFogNodes/2);
 	        setLayout(new FlowLayout());
@@ -56,7 +57,7 @@ public class Debug extends JFrame{
 	        addTimer();
 	        addUtil();
 
-	        setVisible(true);
+	        setVisible(!Params.external);
 	        
 		}	
 		
@@ -87,7 +88,7 @@ public class Debug extends JFrame{
 		public void addUtil() {
 			 //timer
 	    	util = new JPanel();
-	    	util.setPreferredSize(new Dimension(200,70));
+	    	util.setPreferredSize(new Dimension(200,170));
 	    	util.setBorder(BorderFactory.createLineBorder(Color.black));
 	    	util.setLayout(new FlowLayout());
 			
@@ -102,16 +103,30 @@ public class Debug extends JFrame{
 			avg.setFont(moduleNameFont);
 			avg.setPreferredSize(new Dimension(190,15));
 			
+			avgDB = new JLabel("");
+			avgDB.setHorizontalAlignment(JLabel.CENTER);
+			avgDB.setFont(moduleNameFont);
+			avgDB.setPreferredSize(new Dimension(190,15));
+			
 			instance = new JLabel("");
 			instance.setHorizontalAlignment(JLabel.CENTER);
 			instance.setFont(moduleNameFont);
 			instance.setPreferredSize(new Dimension(190,15));
 			
+			rtu = new JLabel("");
+			rtu.setHorizontalAlignment(JLabel.CENTER);
+			rtu.setFont(moduleNameFont);
+			rtu.setPreferredSize(new Dimension(190,15));
+			
+			
 			util.add(avg);
+			util.add(avgDB);
 			util.add(instance);
+			util.add(rtu);
 			
 			avg.setVisible(true);
 			instance.setVisible(true);
+			rtu.setVisible(true);
 			setInstance(Params.jmin);
 			stat.add(util);
 		}
@@ -208,10 +223,22 @@ public class Debug extends JFrame{
 			util.revalidate();
 			util.repaint();
 		}
+		
+		public void setAvgUtilDuringBurst() {
+			avgDB.setText(String.format("%.2f",Desa.avgCPUDuringBurst/Desa.avgCPUcnt)+"%");
+			util.revalidate();
+			util.repaint();
+		}
 		public void setInstance(int i) {
 			instance.setText("Current instances: "+i);
 			util.revalidate();
 			util.repaint();
+		}
+		public void setRTU() {
+			rtu.setText("RTU: " + Desa.RTU);
+			util.revalidate();
+			util.repaint();
+			
 		}
 }
 

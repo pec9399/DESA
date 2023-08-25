@@ -48,20 +48,25 @@ public class ModulePlacementMapping extends ModulePlacement{
 
 	public void updateModules(int n) {
 		//handle unmapped modules
-			Desa.RTU = -1;
+			//Desa.RTU = -1;
 				Desa.maxInstances = (int)Math.max(Desa.maxInstances, n);
 				List<AppModule> modules = getApplication().getModules();
 				int s = modules.size();
+				
+				
+				double totalMips = 0.0;
 				for(int j = 0; j < s; j++) {
 					AppModule instance = modules.get(j);
 					if(instance.getName().equals("emergencyApp") && !instance.placed) {
 						//Desa.emergencyApp.setModules(new ArrayList<AppModule>());
+				
 						for(int i = 0; i < n;i++) {
 							//round-robin
 							
 							
 							int cur = (cnt % Params.numFogNodes)+1;
 							if(getApplication().getModuleByName(instance.getName()+"-"+(cnt+1)) != null) {
+								totalMips += getApplication().getModuleByName(instance.getName()+"-"+(cnt+1)).handledMips;
 								cnt++;
 								continue;
 							}
@@ -104,6 +109,11 @@ public class ModulePlacementMapping extends ModulePlacement{
 						break;
 					}
 				}
+				
+			
+			
+		
+				
 	}
 	
 	public ModulePlacementMapping(List<FogDevice> fogDevices, Application application, 
