@@ -25,6 +25,7 @@ import org.cloudbus.cloudsim.core.predicates.Predicate;
 import org.cloudbus.cloudsim.core.predicates.PredicateAny;
 import org.cloudbus.cloudsim.core.predicates.PredicateNone;
 import org.fog.application.AppModule;
+import org.fog.entities.Cloud;
 import org.fog.entities.FogDevice;
 import org.fog.scheduler.TupleScheduler;
 import org.fog.test.perfeval.Desa;
@@ -75,7 +76,7 @@ public class CloudSim {
 	private static double minTimeBetweenEvents = 0.1;
 	
 	private static BufferedWriter writer;
-	public static double prevAvg = 0.0;
+	public static double avg = 0.0;
 	/**
 	 * Initialises all the common attributes.
 	 * 
@@ -90,6 +91,7 @@ public class CloudSim {
 	
 	private static double prevTime = -1;
 	public static double lastResetTime = 0;
+	public static double latency = 0.0;
 	private static void initCommonVariable(Calendar _calendar, boolean _traceFlag, int numUser)
 			throws Exception {
 		initialize();
@@ -531,13 +533,13 @@ public class CloudSim {
 		boolean queue_empty;
 		Desa.debug.setTime(clock);
 		boolean stable = true;
-		double avg = 0.0;
+		avg = 0.0;
     	for (FogDevice node : Desa.fogDevices) {
     		if(node.getName().contains("Node-")) {
     			for (Vm vm : node.getVmList()) {
 				   AppModule operator = (AppModule) vm;
 		            if(operator.getName().contains("emergencyApp-")) {
-		            	double utilization = operator.handledMips / operator.getMips()/((int)CloudSim.clock()-(int)lastResetTime);          	
+		            	double utilization = operator.handledMips / operator.getMips()/(CloudSim.clock()-lastResetTime);          	
 		            	//Logger.debug(node.getName(),operator.getName() + ": "+(utilization) + "%");
 		            	if(!operator.getName().contains("monitor")) {
 			            	avg += utilization;
@@ -553,37 +555,38 @@ public class CloudSim {
     	
     	avg /= Desa.currentInstances;
     	
-    	if(((int)CloudSim.clock())%1000 == 0 && avg <100000 && clock() > Params.burstTime && clock() < Params.burstTime+Params.burstDuration) {
-    		Desa.avgCPUcnt++;
-    		Desa.avgCPUDuringBurst += avg;
-    		Desa.debug.setAvgUtilDuringBurst();
-    	}
+    	if(Desa.hpa) {
+	    	if(((int)CloudSim.clock())%1000 == 0 && avg <100000 && clock() > Params.burstTime && clock() < Params.burstTime+Params.burstDuration) {
+	    		Desa.avgCPUcnt++;
+	    		Desa.avgCPUDuringBurst += avg;
+	    		Desa.debug.setAvgUtilDuringBurst();
+	    	}
+    	
 
-    	if(avg < 1000000) {
-			Desa.debug.setAvgUtil(avg);
-			prevAvg = avg;
-			
-			if(CloudSim.clock() < Params.burstTime + Params.burstDuration) {
-				Desa.finalUtilization = avg;
-			}
-    	}
-		
-		
-    	if(CloudSim.clock() > Params.burstTime && ((int)CloudSim.clock()-(int)lastResetTime) > 1000){
-	    	if(Desa.RTU < 0 && (avg < Params.upperThreshold*100)){
-	    	
-				Desa.RTU = (CloudSim.clock() - Params.burstTime)/1000;
-			
-				Desa.debug.setRTU();
-			} else if(Desa.RTU > -1 && avg > Params.upperThreshold*100 + 5) {
-				if(Desa.RTU != -1) {
-					Desa.lastRTU = Desa.RTU;
-					Desa.RTU =-1;
+	    	if(avg < 1000000) {
+				Desa.debug.setAvgUtil(avg);
+				
+				if(CloudSim.clock() < Params.burstTime + Params.burstDuration) {
+					Desa.finalUtilization = avg;
 				}
-				Desa.debug.setRTU();
-			}
-    	}
-		
+	    	}
+	    	if(CloudSim.clock() > Params.burstTime && ((int)CloudSim.clock()-(int)lastResetTime) > 1000){
+		    	if(Desa.RTU < 0 && (avg < Params.upperThreshold*100) && (avg > 10) && stable){
+		    	
+					Desa.RTU = (CloudSim.clock() - Params.burstTime)/1000;
+				
+					Desa.debug.setRTU();
+				} else if(Desa.RTU > -1 && (avg > Params.upperThreshold*100 || !stable)) {
+					if(Desa.RTU != -1) {
+						Desa.lastRTU = Desa.RTU;
+						Desa.RTU =-1;
+					}
+					Desa.debug.setRTU();
+				}
+	    	}
+			
+    	} 
+    	
 		
 		
 		/*if(CloudSim.clock()!=prevTime) {

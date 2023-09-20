@@ -152,10 +152,10 @@ public class AppModule extends PowerVm{
     public void monitor(double utilization) {
     	
          averageCPUUtilization = utilization;
-         handledMips = 0.0;
-         CloudSim.lastResetTime = CloudSim.clock();
          Logger.debug(getName(), String.format("%.2f%%",averageCPUUtilization));
-         send(node.getId(),Params.numFogNodes+ Desa.currentInstances*3,FogEvents.ANALYZE, this);
+         //node.send(Desa.cloud.getId(),0,FogEvents.RESET);
+         CloudSim.latency=Params.numFogNodes+ Desa.currentInstances*3;
+         analyze();
 
     }
     public boolean analyze() {
@@ -163,34 +163,34 @@ public class AppModule extends PowerVm{
 
 		    		if(childNum == 0) {
 		    			desiredReplicas = (int)Math.ceil((averageCPUUtilization/(Params.upperThreshold*100)));
+		    			if(desiredReplicas > 1)
 		    			childNum+= desiredReplicas;
 		    		} else {
 		    			desiredReplicas = (int)Math.floor((averageCPUUtilization/(Params.upperThreshold*100)));
 		    		}
 		    		
 		
-		    	
 		    	if(desiredReplicas > 1)
 		    		return plan();
-		    
+		    	
 		    	return false;
 		    }
 		    
     public  boolean plan() {
-		    	//Logger.debug(getName(),"Start Plan");
+		    	Logger.debug(getName(),"Start Plan");
 		    	return execute();
 		    }
 		    
     public  boolean execute() {
-    			
+    
 		    	Logger.debug(getName(),"Scale " + (desiredReplicas-1) + " instances");
 		    	Desa.currentInstances += desiredReplicas-1;
 				Desa.maxInstances = Math.max(Desa.currentInstances, Desa.maxInstances);
 				Desa.controller.submitApplication(Desa.emergencyApp,(int)node.getUplinkLatency(), new ModulePlacementMapping(Desa.fogDevices,Desa.emergencyApp, Desa.moduleMapping));
 				
 				Desa.debug.setInstance(Desa.currentInstances);
+				Desa.debug.markInstance(Desa.currentInstances);
 				node.send(Desa.cloud.getId(),5,FogEvents.SCALEUP);
-				
 				for(String appId : Desa.controller.applications.keySet()){
 					if(appId.equals("emergencyApp")) {
 						//send(getId(), (int)node.getUplinkLatency(), FogEvents.APP_SUBMIT, Desa.controller.applications.get(appId));

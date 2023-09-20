@@ -60,7 +60,7 @@ public class Desa {
     static LocationHandler locator;
     public static Application emergencyApp;
     public int appId = -1;
-    public static int currentInstances = 0; //only available for HPA since it is centralized
+    public static int currentInstances = 0; 
     public static CustomRequest connections, monitorRequest; 
     public static Cloud cloud;
     public static Map<String, Double> totalMips = new HashMap<String,Double>();
@@ -82,23 +82,30 @@ public class Desa {
     
 	public static void main(String args[]) {
 		try {
-			
+			//for the actual experiment
 			if(args.length >0) {
     			Params.external = true;
     			hpa =  Integer.parseInt(args[0]) != 1;
     			Params.numFogNodes = Integer.parseInt(args[1]);
     			Params.seed = Integer.parseInt(args[2]);
     			String s = hpa ? "hpa" : "desa";
-    			file = new File("C:\\Users\\WebEng\\Desktop\\data\\" + s+Params.seed+".csv");
-    			file2 = new File("C:\\Users\\WebEng\\Desktop\\data\\" + s+".csv");
+    			file = new File("C:\\Users\\EunChan\\Desktop\\data\\" + s+Params.seed+".csv");
+    			file2 = new File("C:\\Users\\EunChan\\Desktop\\data\\" + s+".csv");
     			Params.requestCPULength = Params.numFogNodes*200;
     			Params.requestNetworkLength = Params.numFogNodes*200;
     			Params.burstTime = (int)(new Random(Params.seed).nextInt(60*1000, 5*60*1000));
 			} else {
-				//String s = hpa ? "hpa" : "desa";
-				//file = new File("C:\\Users\\WebEng\\Desktop\\data\\" + s+Params.numFogNodes+".csv");
+				//case study
+				Params.fromFile = true;
 			}
 			debug = new Debug();
+			
+			
+			
+			if(Params.fromFile) {
+				Params.burstTime = 0;
+				file = new File("C:\\Users\\EunChan\\Desktop\\data\\fifa.csv");
+			}
 			
 			Log.disable(); 
 			Logger.ENABLED = true;
@@ -106,6 +113,8 @@ public class Desa {
 		    Calendar calendar = Calendar.getInstance();
 		    boolean trace_flag = false; 
 		    CloudSim.init(num_user, calendar, trace_flag);
+		    
+		    //start with jmin instances
 		    currentInstances = Params.jmin;
 		    
 		    //cloud
@@ -113,8 +122,7 @@ public class Desa {
     		cloud.setParentId(-1);
     		fogDevices.add(cloud);
     		
-    		//fogs
-
+    		//fog nodes
     		for(int i = 1; i <= Params.numFogNodes; i++) {
     			FogDevice node = createFogDevice("Node-"+i, 10000, 40000,10000, 10000, 10000, 1, 0.0, 103, 83.25);
     			node.setParentId(cloud.getId());
@@ -124,6 +132,8 @@ public class Desa {
     		}
 		    
     		broker1 = new FogBroker("broker-1");
+    		
+    		//applications
     		Application registry = createGlobalServiceRegistry("registry", broker1.getId());
     		registry.setUserId(broker1.getId());
     			
@@ -140,14 +150,25 @@ public class Desa {
     		monitor.setGatewayDeviceId(cloud.getId());
     		sensors.add(monitor);
     		
+    		//used to get average CPU of the instances across fog nodes
+    		//for debugging purposes only since in an actual scenario, there is no centralized controller
+    		if(!hpa) {
+    			CustomRequest debugMonitor = new CustomRequest("debug-monitor","debug-monitor",broker1.getId(),"autoscaler",new DeterministicDistribution(1));
+    			debugMonitor.setGatewayDeviceId(cloud.getId());
+        		sensors.add(debugMonitor);
+        		
+    		}
+    		
     		
     		//Sensor requests = new Sensor("request","request",broker1.getId(),"registry",new NormalDistribution(Params.requestInterval, Params.requestInterval/2));
+    		//load-generator
     		CustomRequest requests = new CustomRequest("request","request",broker1.getId(),"registry",new DeterministicDistribution(Params.requestInterval));
 
     		
     		requests.setGatewayDeviceId(cloud.getId());
     		sensors.add(requests);
     
+    		//custom sensor to forward requests
     		connections = new CustomRequest("connection","connection",broker1.getId(),"emergencyApp",new DeterministicDistribution(0));
     		connections.setGatewayDeviceId(cloud.getId());
     		sensors.add(connections);
@@ -156,18 +177,15 @@ public class Desa {
     		CustomRequest metric = new CustomRequest("metric","metric",broker1.getId(),"metric-server",new DeterministicDistribution(1000));
     		metric.setGatewayDeviceId(cloud.getId());
     		sensors.add(metric);
-    	
+    		
     		
     		moduleMapping = ModuleMapping.createModuleMapping();
     		moduleMapping.addModuleToDevice("registry", "cloud");
     		
-    		//hpa
+    	
     		if(hpa) {
 	    		moduleMapping.addModuleToDevice("metric-server", "cloud");
-    		} else {
-    			
     		}
-    		
     		controller = new CustomController("master-controller", fogDevices, sensors,
     				actuators);
     		
@@ -177,6 +195,7 @@ public class Desa {
     		controller.submitApplication(metricServer, new ModulePlacementMapping(fogDevices,metricServer, moduleMapping));
     		
     	
+    		//debug monitor
     		debug.addNodes(fogDevices);
     		
     		
@@ -339,6 +358,10 @@ public class Desa {
   		
   		application.addAppEdge("monitor", "monitorComponent", Params.requestCPULength, Params.requestNetworkLength, "monitor", Tuple.UP, AppEdge.SENSOR);
   		
+  		//debugging only
+  		if(!hpa)
+  			application.addAppEdge("debug-monitor", "monitorComponent", 0, 0, "debug-monitor", Tuple.UP, AppEdge.SENSOR);
+  			
   		final AppLoop loop1 = new AppLoop(modules);
   		List<AppLoop> loops = new ArrayList<AppLoop>(){{add(loop1);}};
   		application.setLoops(loops);
@@ -355,9 +378,7 @@ public class Desa {
   		if(hpa) {
 	  		application.addAppModule("metric-server", 10,10,10);
 	  		modules.add("metric-server");
-  		} else {
-
-  		}
+  		} 
   		application.addAppEdge("metric", "metric-server", 10, 10, "metric", Tuple.UP, AppEdge.SENSOR);
   		
   		final AppLoop loop1 = new AppLoop(modules);

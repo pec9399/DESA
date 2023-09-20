@@ -3,6 +3,7 @@ package org.fog.utils.distribution;
 public class DeterministicDistribution extends Distribution{
 
 	private double value;
+	public static double latency;
 
 	public DeterministicDistribution(double value) {
 		super();

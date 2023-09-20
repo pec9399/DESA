@@ -86,9 +86,11 @@ public class CustomController extends SimEntity{
 		}
 
 		send(getId(), Config.RESOURCE_MANAGE_INTERVAL, FogEvents.CONTROLLER_RESOURCE_MANAGE);
-		send(getId(),Params.burstTime,FogEvents.BURST);
-		send(getId(),Params.burstTime+Params.burstDuration,FogEvents.BURSTEND);
-		send(getId(),Params.burstTime+Params.burstDuration+1000,FogEvents.STOP_SIMULATION);
+		if(!Params.fromFile) {
+			send(getId(),Params.burstTime,FogEvents.BURST);
+			send(getId(),Params.burstTime+Params.burstDuration,FogEvents.BURSTEND);
+			send(getId(),Params.burstTime+Params.burstDuration+1000,FogEvents.STOP_SIMULATION);
+		}
 		//send(getId(), Config.MAX_SIMULATION_TIME, FogEvents.STOP_SIMULATION);
 		
 		for(FogDevice dev : getFogDevices())
@@ -130,6 +132,7 @@ public class CustomController extends SimEntity{
 	}
 	
 	public void burst() {
+		
 		Logger.debug("system", "burst start");
 		CustomRequest.numUsers = 1000;
 	}
@@ -165,9 +168,10 @@ public class CustomController extends SimEntity{
 			printMergedResult();
 			
 		} else {
-			System.out.println("RTU: " + Desa.RTU);
+			System.out.println("RTU: "+(Desa.RTU == -1? Desa.lastRTU : Desa.RTU)+",");
 			System.out.println("max(j(t)): " + Desa.maxInstances);
-			System.out.println("avgCPU: " + Desa.avgCPUDuringBurst/Desa.avgCPUcnt/1000);
+			System.out.println("avgCPU during burst "+Desa.avgCPUDuringBurst/Desa.avgCPUcnt+",");
+			System.out.println("Final utilization "+Desa.finalUtilization+",");
 		}
 	}
 	

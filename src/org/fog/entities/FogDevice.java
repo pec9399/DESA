@@ -321,20 +321,24 @@ public class FogDevice extends PowerDatacenter {
     void monitor(String moduleName) {
     	
     
-    	
+ 
     	if(Integer.parseInt(moduleName.substring(moduleName.indexOf("-")+1,moduleName.lastIndexOf("-"))) > originalInstance)
     		return;
     	List<Vm> l= getHost().getVmList();
-    	
+    
     	for (int i = 0; i<l.size(); i++) {
             AppModule operator = (AppModule) l.get(i);
             if(operator.getName().equals(moduleName.substring(0,moduleName.lastIndexOf("-"))))  {
           
-            	operator.monitor(operator.handledMips / operator.getMips()/(Params.monitorInterval));
-            	operator.handledMips = 0;
-            	CloudSim.lastResetTime= CloudSim.clock();
+            	operator.monitor(operator.handledMips / operator.getMips()/(CloudSim.clock() - CloudSim.lastResetTime));
+            	
+            	//operator.handledMips = 0;
+            	//CloudSim.lastResetTime= CloudSim.clock();
             }
     	}
+
+    	
+	
     	
     	
     	

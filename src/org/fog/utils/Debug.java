@@ -6,6 +6,9 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,7 +37,7 @@ public class Debug extends JFrame{
 		HashMap<String, JProgressBar> moduleToUtilMap = new HashMap<String, JProgressBar>();
 		Font deviceNameFont = new Font("Raleway", Font.BOLD, 15);
 		Font moduleNameFont = new Font("Raleway", Font.PLAIN, 12);
-		JLabel time, avg, instance, rtu, avgDB;
+		JLabel time,time2, avg, instance, rtu, avgDB;
 		JPanel timer, util;
 		JFrame stat;
 		
@@ -64,7 +67,7 @@ public class Debug extends JFrame{
 		public void addTimer() {
 			 //timer
 	    	timer = new JPanel();
-	    	timer.setPreferredSize(new Dimension(200,50));
+	    	timer.setPreferredSize(new Dimension(200,100));
 	    	timer.setBorder(BorderFactory.createLineBorder(Color.black));
 	    	timer.setLayout(new FlowLayout());
 			
@@ -74,10 +77,17 @@ public class Debug extends JFrame{
 			label.setFont(deviceNameFont);
 			timer.add(label);
 			
-			time = new JLabel(""+CloudSim.clock());
+			
+			time = new JLabel(String.format("%.2f",CloudSim.clock()));
 			time.setHorizontalAlignment(JLabel.CENTER);
 			time.setFont(moduleNameFont);
 			timer.add(time);
+			
+
+			time2 = new JLabel(String.format("%.2f",(CloudSim.clock() - Params.burstTime)/1000));
+			time2.setHorizontalAlignment(JLabel.CENTER);
+			time2.setFont(moduleNameFont);
+			timer.add(time2);
 			
 			timer.setVisible(true);
 			
@@ -212,7 +222,8 @@ public class Debug extends JFrame{
 		}
 		
 		public void setTime(double t) {
-			time.setText(""+t);
+			time.setText(String.format("%.2f",t));
+			time2.setText(String.format("%.2f",(CloudSim.clock() - Params.burstTime)/1000));
 			timer.revalidate();
 			timer.repaint();
 		}
@@ -234,6 +245,20 @@ public class Debug extends JFrame{
 			util.revalidate();
 			util.repaint();
 		}
+		public void markInstance(int i) {
+			if(Params.fromFile) {
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(Desa.file,true))) {
+				writer.write(""+CloudSim.clock()/1000.0+",");
+				writer.write(""+i+",");
+				writer.write("\n");
+			} catch (IOException e) {
+			    e.printStackTrace();
+			    
+			    
+			}
+			}
+		}
+		
 		public void setRTU() {
 			rtu.setText("RTU: " + Desa.RTU);
 			util.revalidate();

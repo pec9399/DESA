@@ -9,6 +9,7 @@ import org.cloudbus.cloudsim.UtilizationModelFull;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.SimEvent;
 import org.fog.application.AppEdge;
+import org.fog.entities.Cloud;
 import org.fog.entities.Sensor;
 import org.fog.entities.Tuple;
 import org.fog.mobilitydata.References;
@@ -39,9 +40,9 @@ public class CustomRequest extends Sensor{
 	@Override
 	public void startEntity() {
 		send(gatewayDeviceId, CloudSim.getMinTimeBetweenEvents(), FogEvents.SENSOR_JOINED, geoLocation);
-		if(appId.equals("registry") & Params.fromFile) {
+		if(appId.equals("registry") && Params.fromFile) {
 			try {
-				//read dataset file to generate user requests
+				//read dataset file to generate user requests for case study
 				File requests = new File(References.dataset_request);
 				Scanner scanner = new Scanner(requests);
 				while(scanner.hasNextLine()) {
@@ -75,7 +76,11 @@ public class CustomRequest extends Sensor{
 			}else if(appId.equals("registry") && !Params.fromFile) {
 				transmit(numUsers);
 			}
+			if(appId.equals("autoscaler")) {
+				send(getId(), getTransmitDistribution().getNextValue()+Cloud.latency, FogEvents.EMIT_TUPLE);
+			}else {
 			send(getId(), getTransmitDistribution().getNextValue(), FogEvents.EMIT_TUPLE);
+			}
 			break;
 		}		
 	}
